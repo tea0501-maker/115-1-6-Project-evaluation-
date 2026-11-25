@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>六年級國家探索專案評分器 | Grade 6 Country Project Grader</title>
+
+  <!-- Google Fonts: Inter + Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- SheetJS for Excel (.xlsx/.xls) and CSV import/export -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            warmBg: '#FAF7F5',
+            sand: '#F2EBE6',
+            borderWarm: '#E6DDD6',
+            terracotta: '#C4846C',
+            terracottaDark: '#AE6F58',
+            terracottaLight: '#D8A48F',
+            terracottaSoft: '#F9EFEA',
+            slateOlive: '#2C3531',
+            slateMuted: '#64706B',
+            sage: '#4A7C59',
+            sageSoft: '#EBF4EE',
+          },
+          fontFamily: {
+            sans: ['"Inter"', '"Noto Sans TC"', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    body {
+      background-color: #FAF7F5;
+      color: #2C3531;
+      font-family: "Inter", "Noto Sans TC", system-ui, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Hide scrollbar for clean horizontal class/group pills on iPad */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Smooth touch feedback */
+    .tap-btn {
+      transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .tap-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* Subtle pulse highlight when auto-saved */
+    @keyframes saveFlash {
+      0% { background-color: #D2EBDA; transform: scale(1.03); }
+      100% { background-color: #EBF4EE; transform: scale(1); }
+    }
+    .save-flash {
+      animation: saveFlash 0.65s ease;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- ==================== TOP STICKY HEADER ==================== -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-borderWarm shadow-sm">
+    <div class="max-w-7xl mx-auto px-3 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand / Title + Auto-Save Indicator -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 rounded-xl bg-terracotta text-white flex items-center justify-center shadow-sm shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <h1 id="appTitle" class="text-base sm:text-lg font-extrabold text-slateOlive truncate leading-tight">
+            六年級國家探索專案評分器
+          </h1>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-slateMuted mt-0.5">
+            <span id="appSubtitle" class="truncate">教師評分：小組 30% + 個人 30%（滿分 60 分）</span>
+            <span id="saveIndicator" class="inline-flex items-center gap-1 text-sage font-semibold bg-sageSoft px-2.5 py-0.5 rounded-full border border-sage/20">
+              <span>✓</span>
+              <span id="saveIndicatorText">已自動儲存</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Header Action Buttons -->
+      <div class="flex items-center flex-wrap gap-2">
+        <!-- Bilingual UI Switcher -->
+        <div class="inline-flex bg-sand p-1 rounded-xl border border-borderWarm" role="group" aria-label="Language Switcher">
+          <button id="btnLangZh" onclick="setLanguage('zh')" class="tap-btn min-h-[36px] px-3 rounded-lg text-xs sm:text-sm font-bold">
+            繁體中文
+          </button>
+          <button id="btnLangEn" onclick="setLanguage('en')" class="tap-btn min-h-[36px] px-3 rounded-lg text-xs sm:text-sm font-bold">
+            English
+          </button>
+        </div>
+
+        <!-- Import Classes & Roster -->
+        <button onclick="openClassManagerModal('excel')" class="tap-btn min-h-[44px] px-3.5 py-2 rounded-xl bg-white border border-borderWarm hover:bg-sand text-slateOlive text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4 text-terracotta" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span data-i18n="importBtn">匯入班級/名單</span>
+        </button>
+
+        <!-- Scoreboard Overview -->
+        <button onclick="openScoreboardModal()" class="tap-btn min-h-[44px] px-3.5 py-2 rounded-xl bg-white border border-borderWarm hover:bg-sand text-slateOlive text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4 text-terracotta" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span data-i18n="scoreboardBtn">成績總覽</span>
+        </button>
+
+        <!-- One-Click Export -->
+        <button onclick="openExportModal()" class="tap-btn min-h-[44px] px-4 py-2 rounded-xl bg-terracotta hover:bg-terracottaDark text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span data-i18n="exportBtn">匯出成績</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Class Tabs Bar (Supports Default + Dynamically Imported Classes) -->
+    <div class="border-t border-borderWarm bg-warmBg/95">
+      <div class="max-w-7xl mx-auto px-3 sm:px-5 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar" id="classTabsContainer">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN WORKSPACE ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-5 py-5 space-y-5">
+
+    <!-- Group Selector Bar -->
+    <section class="bg-white rounded-2xl border border-borderWarm p-3.5 sm:p-4 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs font-bold uppercase tracking-wider text-slateMuted" data-i18n="selectGroupLabel">選擇組別</span>
+          <span id="classSummaryPill" class="text-xs px-2.5 py-0.5 rounded-full bg-sand text-slateOlive font-semibold"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openGroupModal('add')" class="tap-btn min-h-[42px] px-3.5 py-1.5 rounded-xl bg-terracottaSoft text-terracotta hover:bg-terracottaLight/30 text-xs sm:text-sm font-bold flex items-center gap-1">
+            <span>＋</span>
+            <span data-i18n="addGroupBtn">新增組別</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="groupPillsContainer" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Dynamic Grading Area (Group + Multi-Member Individual on Same Page) -->
+    <div id="gradingWorkspace" class="space-y-6">
+      <!-- Rendered by JS -->
+    </div>
+
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="max-w-7xl w-full mx-auto px-4 py-5 text-center text-xs text-slateMuted border-t border-borderWarm/60 mt-6">
+    <span data-i18n="footerNote">所有評分與班級名單皆會即時自動儲存於此裝置瀏覽器中（離線可用）；建議評分結束後點擊「匯出成績」下載 Excel 備份。</span>
+  </footer>
+
+  <!-- ==================== TOAST CONTAINER ==================== -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ==================== MODAL: IMPORT CLASSES & MANAGE ==================== -->
+  <div id="classManagerModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slateOlive/50 backdrop-blur-xs p-3 sm:p-5">
+    <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-borderWarm overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-4 sm:p-5 border-b border-borderWarm bg-warmBg flex items-center justify-between gap-2">
+        <h2 class="text-lg font-extrabold text-slateOlive" data-i18n="classManagerTitle">匯入班級與名單管理</h2>
+        <button onclick="closeModal('classManagerModal')" class="tap-btn w-10 h-10 rounded-xl bg-sand hover:bg-borderWarm flex items-center justify-center text-slateOlive font-bold">✕</button>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div class="px-4 sm:px-5 pt-3 bg-white border-b border-borderWarm flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <button id="cmTabExcel" onclick="switchClassManagerTab('excel')" class="tap-btn shrink-0 min-h-[42px] px-4 py-2 rounded-t-xl text-xs sm:text-sm font-bold border-b-2">
+          📂 <span data-i18n="tabExcelImport">Excel / CSV 匯入</span>
+        </button>
+        <button id="cmTabQuick" onclick="switchClassManagerTab('quick')" class="tap-btn shrink-0 min-h-[42px] px-4 py-2 rounded-t-xl text-xs sm:text-sm font-bold border-b-2">
+          ✍️ <span data-i18n="tabQuickAdd">快速新增 / 貼上班級</span>
+        </button>
+        <button id="cmTabManage" onclick="switchClassManagerTab('manage')" class="tap-btn shrink-0 min-h-[42px] px-4 py-2 rounded-t-xl text-xs sm:text-sm font-bold border-b-2">
+          ⚙️ <span data-i18n="tabManageClasses">管理班級與備份</span>
+        </button>
+      </div>
+
+      <!-- Modal Content -->
+      <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+
+        <!-- TAB 1: EXCEL / CSV IMPORT -->
+        <div id="cmPanelExcel" class="space-y-4">
+          <div class="bg-warmBg rounded-2xl p-4 border border-borderWarm space-y-2 text-xs sm:text-sm">
+            <p class="font-bold text-terracotta" data-i18n="importFormatTitle">支援動態新增班級！欄位格式如下（自動辨識中英文）：</p>
+            <p class="text-slateMuted leading-relaxed" data-i18n="importFormatDesc">
+              班級 (Class)、組別 (Group)、座號 (No./Seat)、姓名 (Name)、職務 (Role，選填)。若檔案內包含新班級名稱（例如：六平、607、501），系統會自動建立新的班級分頁！
+            </p>
+            <div class="pt-1">
+              <button onclick="downloadSampleTemplate()" class="tap-btn min-h-[44px] px-4 py-2 rounded-xl bg-white border border-terracotta text-terracotta hover:bg-terracottaSoft text-xs sm:text-sm font-bold inline-flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span data-i18n="downloadTemplateBtn">下載 Excel 範本 (.xlsx)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Import Mode Radio -->
+          <div class="space-y-2">
+            <label class="text-xs font-bold text-slateMuted uppercase" data-i18n="importModeLabel">匯入模式</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <label class="flex items-start gap-2.5 p-3.5 rounded-2xl border border-borderWarm bg-warmBg cursor-pointer">
+                <input type="radio" name="importMode" value="merge" checked class="mt-1 accent-[#C4846C]" />
+                <div class="text-xs sm:text-sm">
+                  <div class="font-bold text-slateOlive" data-i18n="importMergeTitle">新增 / 合併班級與名單</div>
+                  <div class="text-slateMuted text-xs mt-0.5" data-i18n="importMergeDesc">保留現有班級與分數，自動加入新班級與新組員</div>
+                </div>
+              </label>
+              <label class="flex items-start gap-2.5 p-3.5 rounded-2xl border border-borderWarm bg-warmBg cursor-pointer">
+                <input type="radio" name="importMode" value="overwrite" class="mt-1 accent-[#C4846C]" />
+                <div class="text-xs sm:text-sm">
+                  <div class="font-bold text-slateOlive" data-i18n="importOverwriteTitle">覆蓋同名班級名單</div>
+                  <div class="text-slateMuted text-xs mt-0.5" data-i18n="importOverwriteDesc">僅重設檔案中出現的班級名單，其他班級不受影響</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Dropzone -->
+          <div id="dropZone" class="border-2 border-dashed border-terracottaLight rounded-2xl p-7 text-center bg-terracottaSoft/40 hover:bg-terracottaSoft/75 transition cursor-pointer" onclick="document.getElementById('rosterFileInput').click()">
+            <input type="file" id="rosterFileInput" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleRosterFile(this.files[0])" />
+            <div class="w-12 h-12 rounded-2xl bg-white border border-borderWarm mx-auto mb-3 flex items-center justify-center text-terracotta shadow-sm">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <p class="text-sm font-bold text-slateOlive" data-i18n="dropZoneTitle">點擊選擇檔案，或將 Excel / CSV 拖曳到此處</p>
+            <p class="text-xs text-slateMuted mt-1" data-i18n="dropZoneSub">支援 .xlsx, .xls, .csv 格式</p>
+          </div>
+        </div>
+
+        <!-- TAB 2: QUICK ADD / PASTE SINGLE CLASS -->
+        <div id="cmPanelQuick" class="hidden space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slateMuted mb-1" data-i18n="quickClassNameLabel">班級名稱（輸入新班級或既有班級）</label>
+              <input id="quickClassName" type="text" list="existingClassDatalist"
+                class="w-full min-h-[44px] px-3.5 rounded-xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-sm font-semibold"
+                placeholder="例如：六平、607、六愛" />
+              <datalist id="existingClassDatalist"></datalist>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slateMuted mb-1" data-i18n="quickModeLabel">寫入方式</label>
+              <select id="quickImportMode" class="w-full min-h-[44px] px-3 rounded-xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-sm font-semibold">
+                <option value="merge" data-i18n="quickModeMerge">合併至該班級（保留現有）</option>
+                <option value="overwrite" data-i18n="quickModeOverwrite">覆蓋該班級名單</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slateMuted mb-1" data-i18n="quickPasteLabel">貼上學生名單（每行一位：組別, 座號, 姓名, 職務選填）</label>
+            <textarea id="quickPasteText" rows="7"
+              class="w-full p-3.5 rounded-2xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-xs sm:text-sm font-mono leading-relaxed"
+              placeholder="第1組, 01, 王小明, Leader&#10;第1組, 02, 李小華, Project Manager&#10;第2組, 03, 陳美玲"></textarea>
+            <p class="text-[11px] text-slateMuted mt-1" data-i18n="quickPasteHint">支援逗號 (,)、Tab（直接從 Excel 複製貼上）或頓號分隔。</p>
+          </div>
+
+          <div class="flex justify-end">
+            <button onclick="handleQuickClassImport()" class="tap-btn min-h-[46px] px-5 py-2.5 rounded-xl bg-terracotta hover:bg-terracottaDark text-white text-sm font-bold shadow-sm">
+              ✓ <span data-i18n="quickImportBtn">建立 / 匯入此班級</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3: MANAGE CLASSES & JSON BACKUP -->
+        <div id="cmPanelManage" class="hidden space-y-5">
+          <!-- Classes List -->
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-slateOlive" data-i18n="manageClassesHeading">已建立的班級列表</h3>
+              <button onclick="confirmResetDemoData()" class="tap-btn min-h-[38px] px-3 py-1.5 rounded-xl bg-warmBg border border-borderWarm hover:border-terracotta text-xs font-semibold text-slateMuted hover:text-terracotta">
+                ↺ <span data-i18n="resetDemoBtn">重設為預設範例</span>
+              </button>
+            </div>
+            <div id="manageClassList" class="space-y-2">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- JSON Backup / Restore for Transferring between iPad & PC -->
+          <div class="bg-warmBg rounded-2xl p-4 border border-borderWarm space-y-3">
+            <div>
+              <h3 class="text-sm font-bold text-slateOlive" data-i18n="backupHeading">備份 / 還原完整資料 (JSON)</h3>
+              <p class="text-xs text-slateMuted mt-0.5" data-i18n="backupDesc">若要在 iPad 與電腦之間同步進度，可先匯出 JSON 備份檔，再到另一台裝置匯入還原。</p>
+            </div>
+            <div class="flex flex-wrap gap-2.5">
+              <button onclick="exportBackupJson()" class="tap-btn min-h-[44px] px-4 py-2 rounded-xl bg-white border border-borderWarm hover:bg-sand text-slateOlive text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                💾 <span data-i18n="backupExportBtn">下載備份檔 (.json)</span>
+              </button>
+              <button onclick="document.getElementById('backupJsonInput').click()" class="tap-btn min-h-[44px] px-4 py-2 rounded-xl bg-white border border-terracotta text-terracotta hover:bg-terracottaSoft text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                📥 <span data-i18n="backupImportBtn">還原備份檔 (.json)</span>
+              </button>
+              <input type="file" id="backupJsonInput" accept=".json" class="hidden" onchange="importBackupJson(this.files[0])" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: SCOREBOARD ==================== -->
+  <div id="scoreboardModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slateOlive/50 backdrop-blur-xs p-3 sm:p-5">
+    <div class="bg-white rounded-3xl max-w-6xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-borderWarm overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-borderWarm flex flex-wrap items-center justify-between gap-3 bg-warmBg">
+        <div>
+          <h2 id="scoreboardTitle" class="text-lg font-extrabold text-slateOlive">成績總覽</h2>
+          <p id="scoreboardSub" class="text-xs text-slateMuted"></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="scoreboardSort" onchange="renderScoreboardTable()" class="min-h-[42px] px-3 rounded-xl border border-borderWarm bg-white text-xs sm:text-sm font-semibold text-slateOlive">
+            <option value="group" data-i18n="sortByGroup">依組別排序</option>
+            <option value="seat" data-i18n="sortBySeat">依座號排序</option>
+            <option value="score" data-i18n="sortByScore">依教師總分排序 (高→低)</option>
+          </select>
+          <button onclick="closeModal('scoreboardModal')" class="tap-btn w-10 h-10 rounded-xl bg-sand hover:bg-borderWarm flex items-center justify-center text-slateOlive font-bold">✕</button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-auto p-4" id="scoreboardBody">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: EXPORT ==================== -->
+  <div id="exportModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slateOlive/50 backdrop-blur-xs p-3 sm:p-5">
+    <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-borderWarm p-5 sm:p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-extrabold text-slateOlive" data-i18n="exportModalTitle">匯出成績報表</h2>
+        <button onclick="closeModal('exportModal')" class="tap-btn w-10 h-10 rounded-xl bg-sand hover:bg-borderWarm flex items-center justify-center text-slateOlive font-bold">✕</button>
+      </div>
+      <p class="text-xs sm:text-sm text-slateMuted leading-relaxed" data-i18n="exportModalDesc">
+        匯出檔案包含完整細項（小組 3 項、個人 3 項、小組原始與 30% 加權、個人原始與 30% 加權、教師總分滿分 60、換算百分制與評語）。
+      </p>
+
+      <div class="space-y-2.5 pt-1">
+        <button onclick="exportAllClassesXlsx()" class="tap-btn w-full min-h-[56px] px-4 py-3 rounded-2xl bg-terracotta hover:bg-terracottaDark text-white text-left flex items-center justify-between shadow-sm">
+          <div>
+            <div class="font-bold text-sm" data-i18n="exportAllXlsx">一次匯出全部班級 (.xlsx)</div>
+            <div class="text-xs text-white/90" data-i18n="exportAllXlsxSub">含「全部班級總表」＋所有班級獨立分頁</div>
+          </div>
+          <span class="text-lg">📊</span>
+        </button>
+
+        <button onclick="exportCurrentClassXlsx()" class="tap-btn w-full min-h-[56px] px-4 py-3 rounded-2xl bg-warmBg hover:bg-sand border border-borderWarm text-slateOlive text-left flex items-center justify-between">
+          <div>
+            <div class="font-bold text-sm" id="exportCurrentXlsxLabel">匯出目前班級 (.xlsx)</div>
+            <div class="text-xs text-slateMuted" data-i18n="exportCurrentXlsxSub">僅匯出目前選擇班級的 Excel 檔案</div>
+          </div>
+          <span class="text-lg">📑</span>
+        </button>
+
+        <button onclick="exportCurrentClassCsv()" class="tap-btn w-full min-h-[56px] px-4 py-3 rounded-2xl bg-warmBg hover:bg-sand border border-borderWarm text-slateOlive text-left flex items-center justify-between">
+          <div>
+            <div class="font-bold text-sm" id="exportCurrentCsvLabel">匯出目前班級 (.csv)</div>
+            <div class="text-xs text-slateMuted" data-i18n="exportCurrentCsvSub">UTF-8 BOM 編碼，Excel 開啟不亂碼</div>
+          </div>
+          <span class="text-lg">📄</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ADD / EDIT GROUP ==================== -->
+  <div id="groupModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slateOlive/50 backdrop-blur-xs p-3 sm:p-5">
+    <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-borderWarm p-5 sm:p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 id="groupModalTitle" class="text-lg font-extrabold text-slateOlive">新增組別</h2>
+        <button onclick="closeModal('groupModal')" class="tap-btn w-10 h-10 rounded-xl bg-sand hover:bg-borderWarm flex items-center justify-center text-slateOlive font-bold">✕</button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slateMuted mb-1" data-i18n="groupNameLabel">組別名稱</label>
+          <input id="inputGroupName" type="text" class="w-full min-h-[44px] px-3.5 rounded-xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-sm font-semibold" placeholder="例如：第 1 組" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slateMuted mb-1" data-i18n="countryLabel">介紹國家（選填）</label>
+          <input id="inputGroupCountry" type="text" class="w-full min-h-[44px] px-3.5 rounded-xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-sm font-semibold" placeholder="例如：Japan 日本" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('groupModal')" class="tap-btn min-h-[44px] px-4 rounded-xl bg-sand text-slateOlive text-sm font-bold" data-i18n="cancelBtn">取消</button>
+        <button onclick="saveGroupModal()" class="tap-btn min-h-[44px] px-5 rounded-xl bg-terracotta text-white text-sm font-bold" data-i18n="saveBtn">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ADD / EDIT STUDENT ==================== -->
+  <div id="studentModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slateOlive/50 backdrop-blur-xs p-3 sm:p-5">
+    <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-borderWarm p-5 sm:p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 id="studentModalTitle" class="text-lg font-extrabold text-slateOlive">新增組員</h2>
+        <button onclick="closeModal('studentModal')" class="tap-btn w-10 h-10 rounded-xl bg-sand hover:bg-borderWarm flex items-center justify-center text-slateOlive font-bold">✕</button>
+      </div>
+      <div class="space-y-3">
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slateMuted mb-1" data-i18n="seatLabel">座號</label>
+            <input id="inputStudentSeat" type="text" class="w-full min-h-[44px] px-3 rounded-xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-sm font-semibold" placeholder="01" />
+          </div>
+          <div class="col-span-2">
+            <label class="block text-xs font-bold text-slateMuted mb-1" data-i18n="nameLabel">姓名</label>
+            <input id="inputStudentName" type="text" class="w-full min-h-[44px] px-3.5 rounded-xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-sm font-semibold" placeholder="王小明" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slateMuted mb-1" data-i18n="roleLabel">職務（選填）</label>
+          <select id="inputStudentRole" class="w-full min-h-[44px] px-3 rounded-xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-sm font-semibold">
+            <option value="">-- 無 / None --</option>
+            <option value="Leader">Leader (組長)</option>
+            <option value="Project Manager">Project Manager (專案經理)</option>
+            <option value="Materials Manager">Materials Manager (材料經理)</option>
+            <option value="Training Manager">Training Manager (訓練經理)</option>
+            <option value="Facilities Manager">Facilities Manager (場地經理)</option>
+            <option value="Member">Member (組員)</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('studentModal')" class="tap-btn min-h-[44px] px-4 rounded-xl bg-sand text-slateOlive text-sm font-bold" data-i18n="cancelBtn">取消</button>
+        <button onclick="saveStudentModal()" class="tap-btn min-h-[44px] px-5 rounded-xl bg-terracotta text-white text-sm font-bold" data-i18n="saveBtn">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CUSTOM CONFIRMATION ==================== -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slateOlive/50 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl border border-borderWarm p-5 sm:p-6 space-y-4">
+      <h3 id="confirmTitle" class="text-base font-extrabold text-slateOlive">確認操作</h3>
+      <p id="confirmMessage" class="text-sm text-slateMuted leading-relaxed"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('confirmModal')" class="tap-btn min-h-[44px] px-4 rounded-xl bg-sand text-slateOlive text-sm font-bold" data-i18n="cancelBtn">取消</button>
+        <button id="confirmOkBtn" class="tap-btn min-h-[44px] px-5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold" data-i18n="confirmBtn">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== APPLICATION SCRIPT ==================== -->
+  <script>
+    /* =========================================================================
+       1. CONSTANTS, BILINGUAL RUBRICS, AND I18N DICTIONARY
+       ========================================================================= */
+    const STORAGE_KEY = 'g6_country_project_grader_v2';
+
+    const DEFAULT_CLASSES_META = [
+      { id: 'cls_6zhong', zh: '六忠', en: '6-Zhong' },
+      { id: 'cls_6xiao',  zh: '六孝', en: '6-Xiao'  },
+      { id: 'cls_6ren',   zh: '六仁', en: '6-Ren'   },
+      { id: 'cls_6ai',    zh: '六愛', en: '6-Ai'    },
+      { id: 'cls_6xin',   zh: '六信', en: '6-Xin'   },
+      { id: 'cls_6mei',   zh: '六美', en: '6-Mei'   },
+    ];
+
+    const LEVEL_LABELS = {
+      5: { zh: '極佳', en: 'Excellent' },
+      4: { zh: '優良', en: 'Good' },
+      3: { zh: '尚可', en: 'Fair' },
+      2: { zh: '待加強', en: 'Needs Work' },
+      1: { zh: '未達標', en: 'Incomplete' },
+    };
+
+    // Group Rubric (30% of project grade; internal weights sum to 100%)
+    const GROUP_RUBRIC = [
+      {
+        key: 'content',
+        weight: 40,
+        titleZh: '內容完整性',
+        titleEn: 'Content Completeness',
+        levels: {
+          5: {
+            zh: '完整涵蓋食物、地標、人物與交通，資料正確且有趣。',
+            en: 'Fully covers food, landmarks, people, and transport with accurate, engaging facts.'
+          },
+          4: {
+            zh: '涵蓋所有指定主題，資料大致正確清楚。',
+            en: 'Covers all required topics clearly with mostly accurate info.'
+          },
+          3: {
+            zh: '缺少 1 個指定主題，或部分內容過於簡略。',
+            en: 'Missing 1 required topic, or some details are too brief.'
+          },
+          2: {
+            zh: '缺少 2 個以上主題，內容明顯不足或有誤。',
+            en: 'Missing 2+ topics; info is sparse or inaccurate.'
+          },
+          1: {
+            zh: '幾乎沒有相關資料或完全偏題。',
+            en: 'Little to no relevant info, or off-topic.'
+          }
+        }
+      },
+      {
+        key: 'craft',
+        weight: 40,
+        titleZh: '作品設計與美觀',
+        titleEn: 'Poster / Clay Craftsmanship',
+        levels: {
+          5: {
+            zh: '海報/黏土極具創意、配色與排版整潔精緻，細節豐富。',
+            en: 'Highly creative, neat, well-organized, and rich in detail.'
+          },
+          4: {
+            zh: '作品整潔美觀、排版清楚，能看出團隊用心。',
+            en: 'Neat, attractive, and clearly organized with visible effort.'
+          },
+          3: {
+            zh: '作品大致完成，但排版略亂或細節較少。',
+            en: 'Mostly complete, but slightly messy or lacking detail.'
+          },
+          2: {
+            zh: '作品草率、字跡難以辨識或結構不穩。',
+            en: 'Rushed, hard to read, or poorly constructed.'
+          },
+          1: {
+            zh: '作品未完成或敷衍了事。',
+            en: 'Unfinished or minimal effort shown.'
+          }
+        }
+      },
+      {
+        key: 'teamwork',
+        weight: 20,
+        titleZh: '團隊合作與分工',
+        titleEn: 'Teamwork & Roles',
+        levels: {
+          5: {
+            zh: '5 項角色（組長、專案、材料、訓練、場地經理）皆確實盡責，上台銜接流暢、桌面整潔。',
+            en: 'All 5 roles (Leader, Project, Materials, Training, Facilities Mgr.) are well fulfilled; smooth transitions and clean workspace.'
+          },
+          4: {
+            zh: '大多數成員配合良好，分工明確且換手順暢。',
+            en: 'Most members cooperate well with clear roles and good flow.'
+          },
+          3: {
+            zh: '部分成員參與度較低，上台銜接偶有冷場。',
+            en: 'Uneven participation; minor awkward pauses between speakers.'
+          },
+          2: {
+            zh: '分工不均（少數人獨撐），報告流程混亂。',
+            en: 'Relies on 1–2 members; disorganized presentation flow.'
+          },
+          1: {
+            zh: '缺乏合作，組內爭執或無人主導流程。',
+            en: 'No teamwork; conflicts or lack of coordination.'
+          }
+        }
+      }
+    ];
+
+    // Individual Rubric (30% of project grade; internal weights sum to 100%)
+    const INDIV_RUBRIC = [
+      {
+        key: 'pron',
+        weight: 40,
+        titleZh: '英語發音與流暢度',
+        titleEn: 'Pronunciation & Fluency',
+        levels: {
+          5: {
+            zh: '發音清晰標準、語句流暢自然，熟記台詞不需看稿。',
+            en: 'Clear pronunciation, smooth delivery, and well-memorized lines.'
+          },
+          4: {
+            zh: '發音大致清楚、語句順暢，偶爾看提示卡。',
+            en: 'Mostly clear and smooth; glances at notes occasionally.'
+          },
+          3: {
+            zh: '發音偶有錯誤或停頓，大部分時間需看著稿子念。',
+            en: 'Some mispronunciations or pauses; relies mostly on reading notes.'
+          },
+          2: {
+            zh: '發音模糊、經常卡頓，幾乎全程低頭照稿念。',
+            en: 'Unclear speech, frequent pauses; reads directly from script.'
+          },
+          1: {
+            zh: '無法順利念出句子或幾乎未開口。',
+            en: 'Unable to deliver lines or barely speaks.'
+          }
+        }
+      },
+      {
+        key: 'vol',
+        weight: 30,
+        titleZh: '音量與語調',
+        titleEn: 'Volume & Tone',
+        levels: {
+          5: {
+            zh: '音量洪亮、全班聽得清楚，語速適中且有語調變化。',
+            en: 'Loud and clear for the whole class; great pace and expression.'
+          },
+          4: {
+            zh: '音量足夠、語速穩定，聽眾能輕鬆聽懂。',
+            en: 'Easy to hear with a steady, appropriate pace.'
+          },
+          3: {
+            zh: '音量略小或語速過快，後排同學較難聽清。',
+            en: 'Slightly soft or too fast; hard for the back row to hear.'
+          },
+          2: {
+            zh: '聲音非常微弱、含糊，幾乎聽不到內容。',
+            en: 'Very quiet or mumbled; difficult to understand.'
+          },
+          1: {
+            zh: '完全沒有發出聲音。',
+            en: 'Does not speak audibly.'
+          }
+        }
+      },
+      {
+        key: 'stage',
+        weight: 30,
+        titleZh: '台風與眼神交流',
+        titleEn: 'Stage Presence & Eye Contact',
+        levels: {
+          5: {
+            zh: '姿態大方自信，全程與觀眾眼神交流，善用作品輔助。',
+            en: 'Confident posture, strong eye contact, and points effectively to the project.'
+          },
+          4: {
+            zh: '站姿端正，多數時間看著觀眾，偶爾指向作品。',
+            en: 'Good posture, looks at the audience often, occasionally uses visuals.'
+          },
+          3: {
+            zh: '略顯緊張，偶爾看觀眾，肢體較僵硬。',
+            en: 'Looks nervous, brief eye contact, stiff body language.'
+          },
+          2: {
+            zh: '全程低頭或背對觀眾，缺乏互動與自信。',
+            en: 'Looks down or away from the audience the whole time.'
+          },
+          1: {
+            zh: '躲在組員後方或拒絕上台面對觀眾。',
+            en: 'Hides behind teammates or refuses to face the class.'
+          }
+        }
+      }
+    ];
+
+    // Full UI Translations (Traditional Chinese & English)
+    const I18N = {
+      zh: {
+        appTitle: '六年級國家探索專案評分器',
+        appSubtitle: '教師評分：小組 30% + 個人 30%（滿分 60 分）',
+        savedPrefix: '已自動儲存',
+        importBtn: '匯入班級/名單',
+        scoreboardBtn: '成績總覽',
+        exportBtn: '匯出成績',
+        selectGroupLabel: '選擇組別',
+        addGroupBtn: '新增組別',
+        addClassTabBtn: '新增班級',
+        footerNote: '所有評分與班級名單皆會即時自動儲存於此裝置瀏覽器中（離線可用）；建議評分結束後點擊「匯出成績」下載 Excel 備份。',
+        classManagerTitle: '匯入班級與名單管理',
+        tabExcelImport: 'Excel / CSV 匯入',
+        tabQuickAdd: '快速新增 / 貼上班級',
+        tabManageClasses: '管理班級與備份',
+        importFormatTitle: '支援動態新增班級！欄位格式如下（自動辨識中英文）：',
+        importFormatDesc: '班級 (Class)、組別 (Group)、座號 (No./Seat)、姓名 (Name)、職務 (Role，選填)。若檔案內包含新班級名稱（例如：六平、607、501），系統會自動建立新的班級分頁！',
+        downloadTemplateBtn: '下載 Excel 範本 (.xlsx)',
+        importModeLabel: '匯入模式',
+        importMergeTitle: '新增 / 合併班級與名單',
+        importMergeDesc: '保留現有班級與分數，自動加入新班級與新組員',
+        importOverwriteTitle: '覆蓋同名班級名單',
+        importOverwriteDesc: '僅重設檔案中出現的班級名單，其他班級不受影響',
+        dropZoneTitle: '點擊選擇檔案，或將 Excel / CSV 拖曳到此處',
+        dropZoneSub: '支援 .xlsx, .xls, .csv 格式',
+        quickClassNameLabel: '班級名稱（輸入新班級或既有班級）',
+        quickModeLabel: '寫入方式',
+        quickModeMerge: '合併至該班級（保留現有）',
+        quickModeOverwrite: '覆蓋該班級名單',
+        quickPasteLabel: '貼上學生名單（每行一位：組別, 座號, 姓名, 職務選填）',
+        quickPasteHint: '支援逗號 (,)、Tab（直接從 Excel 複製貼上）或頓號分隔。',
+        quickImportBtn: '建立 / 匯入此班級',
+        manageClassesHeading: '已建立的班級列表',
+        resetDemoBtn: '重設為預設範例',
+        backupHeading: '備份 / 還原完整資料 (JSON)',
+        backupDesc: '若要在 iPad 與電腦之間同步進度，可先匯出 JSON 備份檔，再到另一台裝置匯入還原。',
+        backupExportBtn: '下載備份檔 (.json)',
+        backupImportBtn: '還原備份檔 (.json)',
+        sortByGroup: '依組別排序',
+        sortBySeat: '依座號排序',
+        sortByScore: '依教師總分排序 (高→低)',
+        exportModalTitle: '匯出成績報表',
+        exportModalDesc: '匯出檔案包含完整細項（小組 3 項、個人 3 項、小組原始與 30% 加權、個人原始與 30% 加權、教師總分滿分 60、換算百分制與評語）。',
+        exportAllXlsx: '一次匯出全部班級 (.xlsx)',
+        exportAllXlsxSub: '含「全部班級總表」＋所有班級獨立分頁',
+        exportCurrentXlsx: '匯出目前班級 (.xlsx)',
+        exportCurrentXlsxSub: '僅匯出目前選擇班級的 Excel 檔案',
+        exportCurrentCsv: '匯出目前班級 (.csv)',
+        exportCurrentCsvSub: 'UTF-8 BOM 編碼，Excel 開啟不亂碼',
+        groupNameLabel: '組別名稱',
+        countryLabel: '介紹國家（選填）',
+        seatLabel: '座號',
+        nameLabel: '姓名',
+        roleLabel: '職務（選填）',
+        cancelBtn: '取消',
+        saveBtn: '儲存',
+        confirmBtn: '確定',
+        emptyClassTitle: '此班級尚未建立任何組別',
+        emptyClassDesc: '您可以點擊上方「匯入班級/名單」上傳 Excel 或貼上名單，或點擊「新增組別」手動建立。',
+        noClassesTitle: '目前尚未建立任何班級',
+        noClassesDesc: '請點擊上方「匯入班級/名單」來建立或匯入班級。',
+        groupMetaCountry: '介紹國家',
+        groupMetaCountryPh: '例如：Japan 日本',
+        groupMetaFormat: '呈現方式',
+        formatPoster: '海報 Poster',
+        formatClay: '黏土 Clay',
+        editGroupBtn: '編輯組別',
+        deleteGroupBtn: '刪除組別',
+        addStudentBtn: '新增組員',
+        part1Badge: '第一部分・小組評分 (佔總分 30%)',
+        part1Sub: '點選下方評分卡，小組分數將自動同步給本組所有組員',
+        groupRawLabel: '小組原始分 (滿分100)',
+        groupWeightedLabel: '小組加權 (30%)',
+        part2Badge: '第二部分・個人報告評分 (佔總分 30%)',
+        part2Sub: '同組所有成員集中在此頁，方便上台輪流報告時即時點擊評分',
+        indivRefTitle: '個人評分規準對照表 (Individual Rubric Reference)',
+        toggleRefShow: '展開對照表',
+        toggleRefHide: '收合對照表',
+        noStudentsYet: '此組尚未加入學生，請點擊右上角「新增組員」。',
+        tapToSelectHint: '請點選上方 1～5 分按鈕',
+        commentPh: '教師評語（選填，例如發音亮點或提醒）...',
+        bdGroup: '小組 30%',
+        bdIndiv: '個人 30%',
+        bdTeacherTotal: '教師總分',
+        bdEquiv100: '百分制',
+        doneBadge: '已完成',
+        inProgressBadge: '評分中',
+        groupsCount: '組',
+        studentsCount: '人',
+        gradedCount: '已評完',
+        toastImported: '班級與名單匯入成功！',
+        toastExported: '報表已開始下載！',
+        toastTemplate: '已下載 Excel 範本！',
+        toastSaved: '已儲存變更',
+        toastReset: '已重設為預設範例資料',
+        toastBackupSaved: '已下載 JSON 備份檔！',
+        toastBackupRestored: '已成功還原備份資料！',
+        confirmResetTitle: '重設為預設 6 個班級範例？',
+        confirmResetMsg: '這將會清除目前的班級與評分紀錄，並恢復預設範例。建議先下載備份檔。',
+        confirmDeleteClassTitle: '確定刪除此班級？',
+        confirmDeleteClassMsg: '該班級內的所有組別、學生與評分紀錄將會永久刪除。',
+        confirmDeleteGroupTitle: '確定刪除此組別？',
+        confirmDeleteGroupMsg: '該組別內所有學生與評分紀錄將會一併刪除。',
+        confirmDeleteStuTitle: '確定刪除此學生？',
+        confirmDeleteStuMsg: '該學生的個人評分紀錄將會被刪除。',
+        editStudentTitle: '編輯學生資料',
+        addStudentTitle: '新增組員',
+        editGroupTitle: '編輯組別',
+        addGroupTitle: '新增組別',
+        goGradeBtn: '前往評分',
+        deleteBtn: '刪除',
+        thGroup: '組別',
+        thSeat: '座號',
+        thName: '姓名',
+        thRole: '職務',
+        thGroup100: '小組(100)',
+        thGroup30: '小組(30%)',
+        thIndiv100: '個人(100)',
+        thIndiv30: '個人(30%)',
+        thTeacher60: '教師總分(60)',
+        thEquiv100: '百分制(100)',
+        thAction: '操作',
+      },
+      en: {
+        appTitle: 'Grade 6 Country Project Grader',
+        appSubtitle: 'Teacher Grading: Group 30% + Individual 30% (Max 60 pts)',
+        savedPrefix: 'Auto-saved',
+        importBtn: 'Import Classes',
+        scoreboardBtn: 'Scoreboard',
+        exportBtn: 'Export Grades',
+        selectGroupLabel: 'Select Group',
+        addGroupBtn: 'Add Group',
+        addClassTabBtn: 'Add Class',
+        footerNote: 'All classes and scores auto-save locally in your browser (works offline). Export to Excel after grading for backup.',
+        classManagerTitle: 'Import Classes & Roster Manager',
+        tabExcelImport: 'Excel / CSV Import',
+        tabQuickAdd: 'Quick Add / Paste Class',
+        tabManageClasses: 'Manage Classes & Backup',
+        importFormatTitle: 'Dynamic Class Creation Supported! Columns (EN / ZH auto-detected):',
+        importFormatDesc: 'Class (班級), Group (組別), No./Seat (座號), Name (姓名), Role (職務, optional). New class names (e.g., 6-Ping, 607, 501) will automatically create new class tabs!',
+        downloadTemplateBtn: 'Download Excel Template (.xlsx)',
+        importModeLabel: 'Import Mode',
+        importMergeTitle: 'Add / Merge Classes & Roster',
+        importMergeDesc: 'Keep existing classes & scores; add new classes and members',
+        importOverwriteTitle: 'Overwrite Matching Classes',
+        importOverwriteDesc: 'Replace only the classes included in this file; keep others intact',
+        dropZoneTitle: 'Tap to browse or drag & drop Excel / CSV here',
+        dropZoneSub: 'Supports .xlsx, .xls, .csv',
+        quickClassNameLabel: 'Class Name (New or Existing)',
+        quickModeLabel: 'Import Action',
+        quickModeMerge: 'Merge into class (keep existing)',
+        quickModeOverwrite: 'Overwrite this class roster',
+        quickPasteLabel: 'Paste Student List (One per line: Group, Seat, Name, Role optional)',
+        quickPasteHint: 'Supports commas (,), Tabs (direct paste from Excel), or Chinese commas.',
+        quickImportBtn: 'Create / Import Class',
+        manageClassesHeading: 'Existing Classes',
+        resetDemoBtn: 'Reset to Demo Data',
+        backupHeading: 'Backup / Restore All Data (JSON)',
+        backupDesc: 'Transfer your classes and grading progress between iPad and PC using a lightweight JSON backup file.',
+        backupExportBtn: 'Download Backup (.json)',
+        backupImportBtn: 'Restore Backup (.json)',
+        sortByGroup: 'Sort by Group',
+        sortBySeat: 'Sort by Seat No.',
+        sortByScore: 'Sort by Teacher Total (High→Low)',
+        exportModalTitle: 'Export Score Report',
+        exportModalDesc: 'Includes all rubric item scores (Group & Individual), 100-pt scores, 30% weighted scores, Teacher Total (max 60), 100-pt average, and comments.',
+        exportAllXlsx: 'Export All Classes (.xlsx)',
+        exportAllXlsxSub: 'Combined "All Classes" sheet + individual tabs for every class',
+        exportCurrentXlsx: 'Export Current Class (.xlsx)',
+        exportCurrentXlsxSub: 'Excel workbook for the currently selected class only',
+        exportCurrentCsv: 'Export Current Class (.csv)',
+        exportCurrentCsvSub: 'UTF-8 BOM encoded for clean opening in Excel',
+        groupNameLabel: 'Group Name',
+        countryLabel: 'Country (Optional)',
+        seatLabel: 'Seat No.',
+        nameLabel: 'Student Name',
+        roleLabel: 'Role (Optional)',
+        cancelBtn: 'Cancel',
+        saveBtn: 'Save',
+        confirmBtn: 'Confirm',
+        emptyClassTitle: 'No groups in this class yet',
+        emptyClassDesc: 'Tap "Import Classes" above to upload an Excel/CSV or paste a list, or tap "Add Group" to create one manually.',
+        noClassesTitle: 'No classes yet',
+        noClassesDesc: 'Tap "Import Classes" above to add or import your classes.',
+        groupMetaCountry: 'Country',
+        groupMetaCountryPh: 'e.g., Japan 日本',
+        groupMetaFormat: 'Format',
+        formatPoster: 'Poster 海報',
+        formatClay: 'Clay 黏土',
+        editGroupBtn: 'Edit Group',
+        deleteGroupBtn: 'Delete Group',
+        addStudentBtn: 'Add Member',
+        part1Badge: 'Part 1 · Group Assessment (30% of Project Grade)',
+        part1Sub: 'Tap any level card below — group scores auto-sync to every member in this group',
+        groupRawLabel: 'Group Score (100-pt)',
+        groupWeightedLabel: 'Group Weighted (30%)',
+        part2Badge: 'Part 2 · Individual Assessment (30% of Project Grade)',
+        part2Sub: 'All group members on one page for fast, seamless grading during presentations',
+        indivRefTitle: 'Individual Rubric Reference (個人評分規準對照表)',
+        toggleRefShow: 'Show Rubric Matrix',
+        toggleRefHide: 'Hide Rubric Matrix',
+        noStudentsYet: 'No students in this group yet. Tap "Add Member" above.',
+        tapToSelectHint: 'Tap 1–5 above to grade',
+        commentPh: 'Teacher comment (optional)...',
+        bdGroup: 'Group 30%',
+        bdIndiv: 'Indiv 30%',
+        bdTeacherTotal: 'Teacher Total',
+        bdEquiv100: '100-pt Avg',
+        doneBadge: 'Graded',
+        inProgressBadge: 'In Progress',
+        groupsCount: 'groups',
+        studentsCount: 'students',
+        gradedCount: 'graded',
+        toastImported: 'Classes & roster imported successfully!',
+        toastExported: 'Report download started!',
+        toastTemplate: 'Excel template downloaded!',
+        toastSaved: 'Changes saved',
+        toastReset: 'Reset to default demo data',
+        toastBackupSaved: 'JSON backup downloaded!',
+        toastBackupRestored: 'Backup restored successfully!',
+        confirmResetTitle: 'Reset to default 6 classes?',
+        confirmResetMsg: 'This clears current classes and scores and restores the demo data. Download a backup first if needed.',
+        confirmDeleteClassTitle: 'Delete this class?',
+        confirmDeleteClassMsg: 'All groups, students, and scores in this class will be permanently removed.',
+        confirmDeleteGroupTitle: 'Delete this group?',
+        confirmDeleteGroupMsg: 'All students and scores in this group will be permanently removed.',
+        confirmDeleteStuTitle: 'Delete this student?',
+        confirmDeleteStuMsg: 'This student and their scores will be permanently removed.',
+        editStudentTitle: 'Edit Student',
+        addStudentTitle: 'Add Group Member',
+        editGroupTitle: 'Edit Group',
+        addGroupTitle: 'Add New Group',
+        goGradeBtn: 'Grade',
+        deleteBtn: 'Delete',
+        thGroup: 'Group',
+        thSeat: 'Seat',
+        thName: 'Name',
+        thRole: 'Role',
+        thGroup100: 'Group(100)',
+        thGroup30: 'Group(30%)',
+        thIndiv100: 'Indiv(100)',
+        thIndiv30: 'Indiv(30%)',
+        thTeacher60: 'Teacher(60)',
+        thEquiv100: 'Avg(100)',
+        thAction: 'Action',
+      }
+    };
+
+    /* =========================================================================
+       2. STATE MANAGEMENT, DEMO DATA & AUTO-SAVE
+       ========================================================================= */
+    let state = null;
+    let modalContext = { groupMode: 'add', groupId: null, studentMode: 'add', studentId: null };
+    let confirmCallback = null;
+
+    function uid(prefix) {
+      return prefix + '_' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+    }
+
+    function formatTimeNow() {
+      const d = new Date();
+      return [d.getHours(), d.getMinutes(), d.getSeconds()]
+        .map(n => String(n).padStart(2, '0'))
+        .join(':');
+    }
+
+    function createDemoState() {
+      const classes = DEFAULT_CLASSES_META.map(m => ({
+        id: m.id,
+        name: m.zh,
+        enName: m.en,
+        groups: []
+      }));
+
+      // Pre-populate sample groups & students in 六愛 and 六信
+      const clsAi = classes.find(c => c.id === 'cls_6ai');
+      clsAi.groups = [
+        {
+          id: uid('grp'),
+          name: '第 1 組',
+          country: 'Japan 日本',
+          format: 'poster',
+          scores: { content: 5, craft: 4, teamwork: 5 },
+          students: [
+            { id: uid('stu'), seat: '01', name: '王小明', role: 'Leader', scores: { pron: 5, vol: 5, stage: 4 }, comment: '帶領順暢，發音清晰！' },
+            { id: uid('stu'), seat: '02', name: '李小華', role: 'Project Manager', scores: { pron: 4, vol: 4, stage: 4 }, comment: '' },
+            { id: uid('stu'), seat: '03', name: '張雅婷', role: 'Materials Manager', scores: { pron: 4, vol: 5, stage: 5 }, comment: '' },
+            { id: uid('stu'), seat: '04', name: '陳冠宇', role: 'Training Manager', scores: { pron: 3, vol: 4, stage: 3 }, comment: '可以多看觀眾' },
+            { id: uid('stu'), seat: '05', name: '林宥嘉', role: 'Facilities Manager', scores: { pron: 4, vol: 4, stage: 4 }, comment: '' },
+          ]
+        },
+        {
+          id: uid('grp'),
+          name: '第 2 組',
+          country: 'Italy 義大利',
+          format: 'clay',
+          scores: { content: null, craft: null, teamwork: null },
+          students: [
+            { id: uid('stu'), seat: '06', name: '黃品妍', role: 'Leader', scores: { pron: null, vol: null, stage: null }, comment: '' },
+            { id: uid('stu'), seat: '07', name: '吳承恩', role: 'Project Manager', scores: { pron: null, vol: null, stage: null }, comment: '' },
+            { id: uid('stu'), seat: '08', name: '蔡依林', role: 'Materials Manager', scores: { pron: null, vol: null, stage: null }, comment: '' },
+            { id: uid('stu'), seat: '09', name: '許哲維', role: 'Training Manager', scores: { pron: null, vol: null, stage: null }, comment: '' },
+            { id: uid('stu'), seat: '10', name: '鄭羽彤', role: 'Facilities Manager', scores: { pron: null, vol: null, stage: null }, comment: '' },
+            { id: uid('stu'), seat: '11', name: '劉子豪', role: 'Member', scores: { pron: null, vol: null, stage: null }, comment: '' },
+          ]
+        }
+      ];
+
+      const clsXin = classes.find(c => c.id === 'cls_6xin');
+      clsXin.groups = [
+        {
+          id: uid('grp'),
+          name: '第 1 組',
+          country: 'France 法國',
+          format: 'poster',
+          scores: { content: null, craft: null, teamwork: null },
+          students: [
+            { id: uid('stu'), seat: '01', name: '周杰倫', role: 'Leader', scores: { pron: null, vol: null, stage: null }, comment: '' },
+            { id: uid('stu'), seat: '02', name: '徐佳瑩', role: 'Project Manager', scores: { pron: null, vol: null, stage: null }, comment: '' },
+            { id: uid('stu'), seat: '03', name: '曾博恩', role: 'Materials Manager', scores: { pron: null, vol: null, stage: null }, comment: '' },
+            { id: uid('stu'), seat: '04', name: '謝欣穎', role: 'Training Manager', scores: { pron: null, vol: null, stage: null }, comment: '' },
+            { id: uid('stu'), seat: '05', name: '蘇打綠', role: 'Facilities Manager', scores: { pron: null, vol: null, stage: null }, comment: '' },
+          ]
+        }
+      ];
+
+      return {
+        lang: 'zh',
+        activeClassId: clsAi.id,
+        activeGroupId: clsAi.groups[0].id,
+        showIndivRubricRef: true,
+        lastSavedAt: formatTimeNow(),
+        classes
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.classes)) {
+            state = parsed;
+            if (!state.lastSavedAt) state.lastSavedAt = formatTimeNow();
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load saved state, initializing demo:', err);
+      }
+      state = createDemoState();
+      saveState(false);
+    }
+
+    function saveState(flash = true) {
+      try {
+        state.lastSavedAt = formatTimeNow();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        updateSaveIndicator(flash);
+      } catch (err) {
+        console.error('Failed to auto-save to localStorage:', err);
+      }
+    }
+
+    function updateSaveIndicator(flash = false) {
+      const textEl = document.getElementById('saveIndicatorText');
+      const badgeEl = document.getElementById('saveIndicator');
+      if (textEl) {
+        textEl.textContent = `${t('savedPrefix')} ${state.lastSavedAt || ''}`.trim();
+      }
+      if (flash && badgeEl) {
+        badgeEl.classList.remove('save-flash');
+        void badgeEl.offsetWidth; // trigger reflow for animation replay
+        badgeEl.classList.add('save-flash');
+      }
+    }
+
+    /* =========================================================================
+       3. SCORING CALCULATIONS (GROUP 30% + INDIVIDUAL 30% = MAX 60)
+       ========================================================================= */
+    function round1(num) {
+      return Math.round(num * 10) / 10;
+    }
+
+    function calcGroupScores(group) {
+      const s = group.scores || {};
+      const c1 = s.content || 0;
+      const c2 = s.craft || 0;
+      const c3 = s.teamwork || 0;
+      const isComplete = Boolean(s.content && s.craft && s.teamwork);
+      // 100-pt scale: (c1*0.4 + c2*0.4 + c3*0.2) * 20
+      const raw = round1((c1 * 0.4 + c2 * 0.4 + c3 * 0.2) * 20);
+      const weighted = round1(raw * 0.3); // Max 30 pts
+      return { raw, weighted, isComplete };
+    }
+
+    function calcStudentScores(student, group) {
+      const g = calcGroupScores(group);
+      const s = student.scores || {};
+      const p1 = s.pron || 0;
+      const p2 = s.vol || 0;
+      const p3 = s.stage || 0;
+      const indivComplete = Boolean(s.pron && s.vol && s.stage);
+      // 100-pt scale: (p1*0.4 + p2*0.3 + p3*0.3) * 20
+      const indivRaw = round1((p1 * 0.4 + p2 * 0.3 + p3 * 0.3) * 20);
+      const indivWeighted = round1(indivRaw * 0.3); // Max 30 pts
+
+      const teacherTotal = round1(g.weighted + indivWeighted); // Max 60 pts
+      const equiv100 = round1(g.raw * 0.5 + indivRaw * 0.5);   // Equivalent 100-pt Teacher Average
+      const isFullyGraded = g.isComplete && indivComplete;
+
+      return {
+        groupRaw: g.raw,
+        groupWeighted: g.weighted,
+        indivRaw,
+        indivWeighted,
+        indivComplete,
+        teacherTotal,
+        equiv100,
+        isFullyGraded
+      };
+    }
+
+    function isGroupFullyGraded(group) {
+      const g = calcGroupScores(group);
+      if (!g.isComplete) return false;
+      if (!group.students || group.students.length === 0) return true;
+      return group.students.every(st => st.scores && st.scores.pron && st.scores.vol && st.scores.stage);
+    }
+
+    function getClassProgress(cls) {
+      const totalGroups = cls.groups.length;
+      const gradedGroups = cls.groups.filter(isGroupFullyGraded).length;
+      const totalStudents = cls.groups.reduce((acc, g) => acc + g.students.length, 0);
+      return { totalGroups, gradedGroups, totalStudents };
+    }
+
+    /* =========================================================================
+       4. HELPERS & LANGUAGE SWITCHING
+       ========================================================================= */
+    function t(key) {
+      return (I18N[state.lang] && I18N[state.lang][key]) || key;
+    }
+
+    function getClassDisplayName(cls) {
+      if (!cls) return '';
+      if (state.lang === 'en' && cls.enName) return cls.enName;
+      return cls.name;
+    }
+
+    function getActiveClass() {
+      if (!state.classes || state.classes.length === 0) return null;
+      let cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) {
+        cls = state.classes[0];
+        state.activeClassId = cls.id;
+      }
+      return cls;
+    }
+
+    function getActiveGroup() {
+      const cls = getActiveClass();
+      if (!cls || cls.groups.length === 0) return null;
+      let grp = cls.groups.find(g => g.id === state.activeGroupId);
+      if (!grp) {
+        grp = cls.groups[0];
+        state.activeGroupId = grp.id;
+      }
+      return grp;
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function setLanguage(lang) {
+      state.lang = lang;
+      saveState(false);
+      renderAll();
+    }
+
+    function applyStaticI18n() {
+      document.getElementById('appTitle').textContent = t('appTitle');
+      document.getElementById('appSubtitle').textContent = t('appSubtitle');
+      updateSaveIndicator(false);
+
+      const btnZh = document.getElementById('btnLangZh');
+      const btnEn = document.getElementById('btnLangEn');
+      if (state.lang === 'zh') {
+        btnZh.className = 'tap-btn min-h-[36px] px-3 rounded-lg text-xs sm:text-sm font-bold bg-white text-terracotta shadow-sm';
+        btnEn.className = 'tap-btn min-h-[36px] px-3 rounded-lg text-xs sm:text-sm font-semibold text-slateMuted hover:text-slateOlive';
+      } else {
+        btnEn.className = 'tap-btn min-h-[36px] px-3 rounded-lg text-xs sm:text-sm font-bold bg-white text-terracotta shadow-sm';
+        btnZh.className = 'tap-btn min-h-[36px] px-3 rounded-lg text-xs sm:text-sm font-semibold text-slateMuted hover:text-slateOlive';
+      }
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (I18N[state.lang][key]) {
+          el.textContent = I18N[state.lang][key];
+        }
+      });
+    }
+
+    function showToast(msg, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const div = document.createElement('div');
+      const bg = type === 'error' ? 'bg-red-600' : 'bg-slateOlive';
+      div.className = `${bg} text-white text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl shadow-lg flex items-center gap-2 transition-all duration-300 opacity-0 translate-y-2`;
+      div.innerHTML = `<span>${type === 'error' ? '⚠️' : '✓'}</span><span>${escapeHtml(msg)}</span>`;
+      container.appendChild(div);
+      requestAnimationFrame(() => div.classList.remove('opacity-0', 'translate-y-2'));
+      setTimeout(() => {
+        div.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => div.remove(), 300);
+      }, 2600);
+    }
+
+    /* =========================================================================
+       5. RENDER FUNCTIONS
+       ========================================================================= */
+    function renderAll() {
+      applyStaticI18n();
+      renderClassTabs();
+      renderGroupBar();
+      renderGradingWorkspace();
+    }
+
+    function renderClassTabs() {
+      const container = document.getElementById('classTabsContainer');
+      const activeCls = getActiveClass();
+
+      const tabsHtml = state.classes.map(cls => {
+        const prog = getClassProgress(cls);
+        const isActive = activeCls && activeCls.id === cls.id;
+        const label = getClassDisplayName(cls);
+        const allDone = prog.totalGroups > 0 && prog.gradedGroups === prog.totalGroups;
+
+        const tabStyle = isActive
+          ? 'bg-terracotta text-white border-terracotta shadow-sm'
+          : 'bg-white text-slateOlive border-borderWarm hover:bg-sand';
+
+        const badgeStyle = isActive
+          ? 'bg-white/20 text-white'
+          : allDone
+            ? 'bg-sageSoft text-sage'
+            : 'bg-sand text-slateMuted';
+
+        return `
+          <button onclick="selectClass('${cls.id}')" class="tap-btn shrink-0 min-h-[44px] px-4 py-2 rounded-xl border text-sm font-bold flex items-center gap-2 ${tabStyle}">
+            <span>${escapeHtml(label)}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${badgeStyle}">
+              ${prog.gradedGroups}/${prog.totalGroups} ${t('groupsCount')}
+            </span>
+          </button>
+        `;
+      }).join('');
+
+      const addClassBtn = `
+        <button onclick="openClassManagerModal('quick')" class="tap-btn shrink-0 min-h-[44px] px-3.5 py-2 rounded-xl border border-dashed border-terracottaLight bg-terracottaSoft/50 hover:bg-terracottaSoft text-terracotta text-xs sm:text-sm font-bold flex items-center gap-1">
+          <span>＋</span>
+          <span>${t('addClassTabBtn')}</span>
+        </button>
+      `;
+
+      container.innerHTML = tabsHtml + addClassBtn;
+    }
+
+    function renderGroupBar() {
+      const cls = getActiveClass();
+      const summaryEl = document.getElementById('classSummaryPill');
+      const container = document.getElementById('groupPillsContainer');
+
+      if (!cls) {
+        summaryEl.textContent = '';
+        container.innerHTML = `<span class="text-xs text-slateMuted py-2">${t('noClassesTitle')}</span>`;
+        return;
+      }
+
+      const prog = getClassProgress(cls);
+      summaryEl.textContent = `${getClassDisplayName(cls)} · ${prog.totalGroups} ${t('groupsCount')} · ${prog.totalStudents} ${t('studentsCount')}`;
+
+      if (cls.groups.length === 0) {
+        container.innerHTML = `<span class="text-xs text-slateMuted py-2">${t('emptyClassTitle')}</span>`;
+        return;
+      }
+
+      const activeGrp = getActiveGroup();
+      container.innerHTML = cls.groups.map(grp => {
+        const isActive = activeGrp && grp.id === activeGrp.id;
+        const done = isGroupFullyGraded(grp);
+
+        const btnClass = isActive
+          ? 'bg-slateOlive text-white border-slateOlive shadow-sm'
+          : 'bg-warmBg text-slateOlive border-borderWarm hover:bg-sand';
+
+        const icon = done
+          ? `<span class="w-5 h-5 rounded-full bg-sage text-white text-[11px] font-bold inline-flex items-center justify-center shrink-0">✓</span>`
+          : `<span class="w-2.5 h-2.5 rounded-full bg-terracottaLight inline-block shrink-0"></span>`;
+
+        const countryTag = grp.country ? `<span class="opacity-75 text-xs font-normal truncate max-w-[95px]">· ${escapeHtml(grp.country)}</span>` : '';
+
+        return `
+          <button onclick="selectGroup('${grp.id}')" class="tap-btn shrink-0 min-h-[44px] px-4 py-2 rounded-xl border text-sm font-bold flex items-center gap-2 ${btnClass}">
+            ${icon}
+            <span>${escapeHtml(grp.name)}</span>
+            ${countryTag}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function renderGradingWorkspace() {
+      const container = document.getElementById('gradingWorkspace');
+      const cls = getActiveClass();
+
+      if (!cls) {
+        container.innerHTML = `
+          <div class="bg-white rounded-3xl border border-borderWarm p-10 text-center space-y-4 shadow-sm">
+            <div class="w-16 h-16 rounded-2xl bg-terracottaSoft text-terracotta mx-auto flex items-center justify-center text-3xl">🏫</div>
+            <h2 class="text-lg font-extrabold text-slateOlive">${t('noClassesTitle')}</h2>
+            <p class="text-sm text-slateMuted max-w-md mx-auto">${t('noClassesDesc')}</p>
+            <button onclick="openClassManagerModal('excel')" class="tap-btn min-h-[46px] px-5 py-2.5 rounded-xl bg-terracotta text-white text-sm font-bold shadow-sm">${t('importBtn')}</button>
+          </div>
+        `;
+        return;
+      }
+
+      const grp = getActiveGroup();
+      if (!grp) {
+        container.innerHTML = `
+          <div class="bg-white rounded-3xl border border-borderWarm p-10 text-center space-y-4 shadow-sm">
+            <div class="w-16 h-16 rounded-2xl bg-terracottaSoft text-terracotta mx-auto flex items-center justify-center text-3xl">🌍</div>
+            <h2 class="text-lg font-extrabold text-slateOlive">${t('emptyClassTitle')}</h2>
+            <p class="text-sm text-slateMuted max-w-md mx-auto">${t('emptyClassDesc')}</p>
+            <div class="flex flex-wrap justify-center gap-3 pt-2">
+              <button onclick="openClassManagerModal('excel')" class="tap-btn min-h-[46px] px-5 py-2.5 rounded-xl bg-terracotta text-white text-sm font-bold shadow-sm">${t('importBtn')}</button>
+              <button onclick="openGroupModal('add')" class="tap-btn min-h-[46px] px-5 py-2.5 rounded-xl bg-sand text-slateOlive text-sm font-bold">${t('addGroupBtn')}</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const gScore = calcGroupScores(grp);
+      const classLabel = getClassDisplayName(cls);
+
+      container.innerHTML = `
+        <!-- GROUP META BAR -->
+        <section class="bg-white rounded-2xl border border-borderWarm p-4 sm:p-5 shadow-sm flex flex-wrap items-end justify-between gap-4">
+          <div class="flex flex-wrap items-end gap-4 flex-1 min-w-[260px]">
+            <div>
+              <div class="text-xs font-bold text-terracotta uppercase tracking-wide">${escapeHtml(classLabel)}</div>
+              <h2 class="text-xl sm:text-2xl font-extrabold text-slateOlive flex items-center gap-2">
+                <span>${escapeHtml(grp.name)}</span>
+                ${isGroupFullyGraded(grp)
+                  ? `<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-sageSoft text-sage">✓ ${t('doneBadge')}</span>`
+                  : `<span class="text-xs font-bold px-2.5 py-1 rounded-full bg-terracottaSoft text-terracotta">${t('inProgressBadge')}</span>`
+                }
+              </h2>
+            </div>
+
+            <!-- Country Input -->
+            <div class="flex-1 min-w-[160px] max-w-xs">
+              <label class="block text-xs font-semibold text-slateMuted mb-1">${t('groupMetaCountry')}</label>
+              <input type="text" value="${escapeHtml(grp.country || '')}"
+                oninput="updateGroupCountry(this.value)"
+                placeholder="${t('groupMetaCountryPh')}"
+                class="w-full min-h-[44px] px-3.5 rounded-xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-sm font-semibold" />
+            </div>
+
+            <!-- Format Toggle -->
+            <div>
+              <label class="block text-xs font-semibold text-slateMuted mb-1">${t('groupMetaFormat')}</label>
+              <div class="inline-flex bg-sand p-1 rounded-xl border border-borderWarm">
+                <button onclick="setGroupFormat('poster')" class="tap-btn min-h-[36px] px-3.5 rounded-lg text-xs sm:text-sm font-bold ${grp.format === 'poster' ? 'bg-white text-terracotta shadow-sm' : 'text-slateMuted'}">
+                  🖼️ ${t('formatPoster')}
+                </button>
+                <button onclick="setGroupFormat('clay')" class="tap-btn min-h-[36px] px-3.5 rounded-lg text-xs sm:text-sm font-bold ${grp.format === 'clay' ? 'bg-white text-terracotta shadow-sm' : 'text-slateMuted'}">
+                  🏺 ${t('formatClay')}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Group Actions -->
+          <div class="flex items-center gap-2">
+            <button onclick="openGroupModal('edit', '${grp.id}')" class="tap-btn min-h-[42px] px-3.5 rounded-xl bg-warmBg border border-borderWarm hover:bg-sand text-xs sm:text-sm font-bold text-slateOlive">
+              ✏️ ${t('editGroupBtn')}
+            </button>
+            <button onclick="confirmDeleteGroup('${grp.id}')" class="tap-btn min-h-[42px] px-3.5 rounded-xl bg-warmBg border border-borderWarm hover:border-red-300 hover:text-red-600 text-xs sm:text-sm font-bold text-slateMuted">
+              🗑️ ${t('deleteGroupBtn')}
+            </button>
+          </div>
+        </section>
+
+        <!-- ==================== SECTION 1: GROUP RUBRIC (30%) ==================== -->
+        <section class="bg-white rounded-3xl border border-borderWarm p-4 sm:p-6 shadow-sm space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-borderWarm">
+            <div>
+              <span class="inline-block text-xs font-bold px-3 py-1 rounded-full bg-terracottaSoft text-terracotta mb-1.5">
+                ${t('part1Badge')}
+              </span>
+              <p class="text-xs sm:text-sm text-slateMuted">${t('part1Sub')}</p>
+            </div>
+            <div class="flex items-center gap-3 bg-warmBg px-4 py-2.5 rounded-2xl border border-borderWarm">
+              <div class="text-right">
+                <div class="text-[11px] font-semibold text-slateMuted">${t('groupRawLabel')}</div>
+                <div class="text-lg font-extrabold text-slateOlive">${gScore.raw} <span class="text-xs font-normal text-slateMuted">/ 100</span></div>
+              </div>
+              <div class="w-px h-8 bg-borderWarm"></div>
+              <div class="text-right">
+                <div class="text-[11px] font-bold text-terracotta">${t('groupWeightedLabel')}</div>
+                <div class="text-xl font-extrabold text-terracotta">${gScore.weighted} <span class="text-xs font-normal text-slateMuted">/ 30</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            ${GROUP_RUBRIC.map(crit => renderGroupCriterionRow(grp, crit)).join('')}
+          </div>
+        </section>
+
+        <!-- ==================== SECTION 2: INDIVIDUAL RUBRIC & MEMBERS (30%) ==================== -->
+        <section class="space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3 bg-white rounded-2xl border border-borderWarm p-4 sm:p-5 shadow-sm">
+            <div>
+              <span class="inline-block text-xs font-bold px-3 py-1 rounded-full bg-sageSoft text-sage mb-1.5">
+                ${t('part2Badge')}
+              </span>
+              <p class="text-xs sm:text-sm text-slateMuted">${t('part2Sub')}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="toggleIndivRubricRef()" class="tap-btn min-h-[44px] px-3.5 py-2 rounded-xl bg-warmBg border border-borderWarm hover:bg-sand text-xs sm:text-sm font-bold text-slateOlive flex items-center gap-1.5">
+                <span>📋</span>
+                <span>${state.showIndivRubricRef ? t('toggleRefHide') : t('toggleRefShow')}</span>
+              </button>
+              <button onclick="openStudentModal('add')" class="tap-btn min-h-[44px] px-4 py-2 rounded-xl bg-sage hover:bg-[#3d684a] text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm">
+                <span>＋</span>
+                <span>${t('addStudentBtn')}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Collapsible Bilingual Individual Rubric Reference Table -->
+          ${state.showIndivRubricRef ? renderIndivRubricReference() : ''}
+
+          <!-- Responsive Student Cards Grid (All Members on Same Page) -->
+          ${grp.students.length === 0
+            ? `<div class="bg-white rounded-2xl border border-borderWarm p-8 text-center text-sm text-slateMuted">${t('noStudentsYet')}</div>`
+            : `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                ${grp.students.map(stu => renderStudentCard(stu, grp)).join('')}
+              </div>`
+          }
+        </section>
+      `;
+    }
+
+    function renderGroupCriterionRow(grp, crit) {
+      const selected = grp.scores ? grp.scores[crit.key] : null;
+      return `
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-sm sm:text-base font-extrabold text-slateOlive">
+              ${crit.titleZh} <span class="font-semibold text-slateMuted">/ ${crit.titleEn}</span>
+            </h3>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-sand text-slateOlive shrink-0">${crit.weight}%</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+            ${[5, 4, 3, 2, 1].map(lv => {
+              const isSelected = selected === lv;
+              const desc = crit.levels[lv];
+              const lbl = LEVEL_LABELS[lv];
+              const cardClass = isSelected
+                ? 'bg-terracottaSoft border-2 border-terracotta shadow-sm ring-2 ring-terracotta/20'
+                : 'bg-warmBg/70 border border-borderWarm hover:bg-sand/70';
+              const badgeClass = isSelected
+                ? 'bg-terracotta text-white'
+                : 'bg-white text-slateOlive border border-borderWarm';
+
+              return `
+                <button type="button" onclick="setGroupScore('${crit.key}', ${lv})"
+                  class="tap-btn text-left p-3 rounded-2xl flex flex-col justify-between gap-2 min-h-[108px] ${cardClass}">
+                  <div class="flex items-center justify-between w-full gap-1">
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl text-sm font-extrabold ${badgeClass}">${lv}</span>
+                    <span class="text-[11px] font-bold ${isSelected ? 'text-terracotta' : 'text-slateMuted'}">${lbl.zh} / ${lbl.en}</span>
+                  </div>
+                  <div class="space-y-1">
+                    <p class="text-xs font-semibold text-slateOlive leading-snug">${desc.zh}</p>
+                    <p class="text-[11px] text-slateMuted leading-snug">${desc.en}</p>
+                  </div>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderIndivRubricReference() {
+      return `
+        <div class="bg-white rounded-3xl border border-borderWarm p-4 sm:p-5 shadow-sm overflow-x-auto">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-extrabold text-slateOlive">📋 ${t('indivRefTitle')}</h3>
+          </div>
+          <table class="w-full min-w-[780px] text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-sand/80 text-slateOlive">
+                <th class="p-2.5 rounded-tl-xl border border-borderWarm w-36">項目 / Criteria</th>
+                ${[5, 4, 3, 2, 1].map(lv => `
+                  <th class="p-2.5 border border-borderWarm ${lv === 1 ? 'rounded-tr-xl' : ''}">
+                    <span class="inline-block px-2 py-0.5 rounded-md bg-white border border-borderWarm font-extrabold mr-1">${lv}</span>
+                    ${LEVEL_LABELS[lv].zh} / ${LEVEL_LABELS[lv].en}
+                  </th>
+                `).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${INDIV_RUBRIC.map(crit => `
+                <tr class="align-top">
+                  <td class="p-2.5 border border-borderWarm bg-warmBg/70 font-bold text-slateOlive">
+                    <div>${crit.titleZh}</div>
+                    <div class="text-[11px] font-medium text-slateMuted">${crit.titleEn}</div>
+                    <span class="inline-block mt-1 text-[10px] px-2 py-0.5 rounded bg-sand text-slateOlive">${crit.weight}%</span>
+                  </td>
+                  ${[5, 4, 3, 2, 1].map(lv => `
+                    <td class="p-2.5 border border-borderWarm bg-white">
+                      <div class="text-slateOlive font-semibold leading-snug mb-1">${crit.levels[lv].zh}</div>
+                      <div class="text-[11px] text-slateMuted leading-snug">${crit.levels[lv].en}</div>
+                    </td>
+                  `).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderStudentCard(stu, grp) {
+      const sc = calcStudentScores(stu, grp);
+
+      return `
+        <article class="bg-white rounded-3xl border ${sc.isFullyGraded ? 'border-sage/50' : 'border-borderWarm'} p-4 sm:p-5 shadow-sm flex flex-col justify-between gap-4">
+          <!-- Student Header -->
+          <div class="flex items-center justify-between gap-2 pb-3 border-b border-borderWarm">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-10 h-10 rounded-xl bg-sand text-slateOlive font-extrabold text-sm flex items-center justify-center shrink-0">
+                ${escapeHtml(stu.seat || '#')}
+              </span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h4 class="text-base sm:text-lg font-extrabold text-slateOlive truncate">${escapeHtml(stu.name)}</h4>
+                  ${stu.role ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-terracottaSoft text-terracotta">${escapeHtml(stu.role)}</span>` : ''}
+                </div>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <button onclick="openStudentModal('edit', '${stu.id}')" class="text-[11px] text-slateMuted hover:text-terracotta underline font-medium">${state.lang === 'zh' ? '編輯' : 'Edit'}</button>
+                  <span class="text-borderWarm">·</span>
+                  <button onclick="confirmDeleteStudent('${stu.id}')" class="text-[11px] text-slateMuted hover:text-red-600 underline font-medium">${state.lang === 'zh' ? '刪除' : 'Delete'}</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Teacher Total (Max 60) + 100-pt Pill -->
+            <div class="text-right bg-warmBg px-3.5 py-2 rounded-2xl border border-borderWarm shrink-0">
+              <div class="text-[10px] font-bold uppercase text-slateMuted">${t('bdTeacherTotal')}</div>
+              <div class="text-xl font-extrabold leading-tight ${sc.isFullyGraded ? 'text-sage' : 'text-terracotta'}">
+                ${sc.teacherTotal} <span class="text-xs font-normal text-slateMuted">/ 60</span>
+              </div>
+              <div class="text-[10px] font-bold text-slateMuted mt-0.5">
+                ${t('bdEquiv100')}: <span class="text-slateOlive">${sc.equiv100}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3 Individual Criteria Buttons (1-5) -->
+          <div class="space-y-3.5">
+            ${INDIV_RUBRIC.map(crit => {
+              const val = stu.scores ? stu.scores[crit.key] : null;
+              const desc = val ? crit.levels[val] : null;
+              return `
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between text-xs sm:text-sm">
+                    <span class="font-bold text-slateOlive">${crit.titleZh} <span class="font-normal text-slateMuted">/ ${crit.titleEn}</span></span>
+                    <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-sand text-slateOlive">${crit.weight}%</span>
+                  </div>
+                  <div class="grid grid-cols-5 gap-2">
+                    ${[5, 4, 3, 2, 1].map(lv => {
+                      const active = val === lv;
+                      const cls = active
+                        ? 'bg-terracotta text-white border-terracotta shadow-sm ring-2 ring-terracotta/25'
+                        : 'bg-warmBg text-slateOlive border-borderWarm hover:bg-sand';
+                      return `
+                        <button type="button" onclick="setStudentScore('${stu.id}', '${crit.key}', ${lv})"
+                          class="tap-btn min-h-[48px] rounded-xl border font-extrabold text-base flex flex-col items-center justify-center ${cls}">
+                          <span>${lv}</span>
+                          <span class="text-[9px] font-semibold opacity-90 leading-none mt-0.5">${LEVEL_LABELS[lv].zh}</span>
+                        </button>
+                      `;
+                    }).join('')}
+                  </div>
+                  <!-- Compact Bilingual Descriptor Preview -->
+                  <div class="text-[11px] rounded-xl px-3 py-1.5 ${desc ? 'bg-terracottaSoft/65 text-slateOlive border border-terracottaLight/40' : 'bg-warmBg/70 text-slateMuted'}">
+                    ${desc
+                      ? `<span class="font-semibold">${desc.zh}</span> <span class="text-slateMuted">/ ${desc.en}</span>`
+                      : `<span>${t('tapToSelectHint')}</span>`
+                    }
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Optional Comment -->
+          <div>
+            <input type="text" value="${escapeHtml(stu.comment || '')}"
+              oninput="updateStudentComment('${stu.id}', this.value)"
+              placeholder="💬 ${t('commentPh')}"
+              class="w-full min-h-[42px] px-3.5 rounded-xl border border-borderWarm bg-warmBg focus:bg-white focus:outline-none focus:border-terracotta text-xs sm:text-sm text-slateOlive" />
+          </div>
+
+          <!-- Live Breakdown Footer -->
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs bg-sand/70 px-3.5 py-2.5 rounded-xl text-slateOlive">
+            <span>${t('bdGroup')}: <strong>${sc.groupWeighted}</strong> <span class="text-[10px] text-slateMuted">(${sc.groupRaw})</span></span>
+            <span class="text-borderWarm">|</span>
+            <span>${t('bdIndiv')}: <strong>${sc.indivWeighted}</strong> <span class="text-[10px] text-slateMuted">(${sc.indivRaw})</span></span>
+            <span class="text-borderWarm">|</span>
+            <span class="font-extrabold ${sc.isFullyGraded ? 'text-sage' : 'text-terracotta'}">
+              ${t('bdTeacherTotal')}: ${sc.teacherTotal} / 60
+            </span>
+          </div>
+        </article>
+      `;
+    }
+
+    /* =========================================================================
+       6. INTERACTION HANDLERS (IMMEDIATE AUTO-SAVE ON EVERY ACTION)
+       ========================================================================= */
+    function selectClass(classId) {
+      state.activeClassId = classId;
+      const cls = state.classes.find(c => c.id === classId);
+      state.activeGroupId = cls && cls.groups.length > 0 ? cls.groups[0].id : null;
+      saveState(false);
+      renderAll();
+    }
+
+    function selectGroup(groupId) {
+      state.activeGroupId = groupId;
+      saveState(false);
+      renderGroupBar();
+      renderGradingWorkspace();
+    }
+
+    function toggleIndivRubricRef() {
+      state.showIndivRubricRef = !state.showIndivRubricRef;
+      saveState(false);
+      renderGradingWorkspace();
+    }
+
+    function setGroupFormat(fmt) {
+      const grp = getActiveGroup();
+      if (!grp) return;
+      grp.format = fmt;
+      saveState(true);
+      renderGradingWorkspace();
+    }
+
+    function updateGroupCountry(val) {
+      const grp = getActiveGroup();
+      if (!grp) return;
+      grp.country = val;
+      saveState(true);
+      renderGroupBar();
+    }
+
+    function setGroupScore(key, val) {
+      const grp = getActiveGroup();
+      if (!grp) return;
+      if (!grp.scores) grp.scores = {};
+      grp.scores[key] = grp.scores[key] === val ? null : val;
+      saveState(true);
+      renderClassTabs();
+      renderGroupBar();
+      renderGradingWorkspace();
+    }
+
+    function setStudentScore(studentId, key, val) {
+      const grp = getActiveGroup();
+      if (!grp) return;
+      const stu = grp.students.find(s => s.id === studentId);
+      if (!stu) return;
+      if (!stu.scores) stu.scores = {};
+      stu.scores[key] = stu.scores[key] === val ? null : val;
+      saveState(true);
+      renderClassTabs();
+      renderGroupBar();
+      renderGradingWorkspace();
+    }
+
+    function updateStudentComment(studentId, val) {
+      const grp = getActiveGroup();
+      if (!grp) return;
+      const stu = grp.students.find(s => s.id === studentId);
+      if (!stu) return;
+      stu.comment = val;
+      saveState(true);
+    }
+
+    /* =========================================================================
+       7. MODAL CONTROLS, CLASS MANAGER, GROUP & STUDENT CRUD
+       ========================================================================= */
+    function openModal(id) {
+      const el = document.getElementById(id);
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      el.classList.add('hidden');
+      el.classList.remove('flex');
+    }
+
+    function openConfirm(title, message, onConfirm) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmMessage').textContent = message;
+      confirmCallback = onConfirm;
+      openModal('confirmModal');
+    }
+
+    document.getElementById('confirmOkBtn').addEventListener('click', () => {
+      closeModal('confirmModal');
+      if (typeof confirmCallback === 'function') confirmCallback();
+      confirmCallback = null;
+    });
+
+    /* --- Class Manager Modal --- */
+    function openClassManagerModal(tab = 'excel') {
+      document.getElementById('rosterFileInput').value = '';
+      document.getElementById('backupJsonInput').value = '';
+      populateClassDatalist();
+      renderManageClassList();
+      switchClassManagerTab(tab);
+      openModal('classManagerModal');
+    }
+
+    function switchClassManagerTab(tab) {
+      const tabs = [
+        { id: 'excel', btn: 'cmTabExcel', panel: 'cmPanelExcel' },
+        { id: 'quick', btn: 'cmTabQuick', panel: 'cmPanelQuick' },
+        { id: 'manage', btn: 'cmTabManage', panel: 'cmPanelManage' }
+      ];
+      tabs.forEach(item => {
+        const b = document.getElementById(item.btn);
+        const p = document.getElementById(item.panel);
+        if (item.id === tab) {
+          b.className = 'tap-btn shrink-0 min-h-[42px] px-4 py-2 rounded-t-xl text-xs sm:text-sm font-bold border-b-2 border-terracotta text-terracotta bg-terracottaSoft/40';
+          p.classList.remove('hidden');
+        } else {
+          b.className = 'tap-btn shrink-0 min-h-[42px] px-4 py-2 rounded-t-xl text-xs sm:text-sm font-bold border-b-2 border-transparent text-slateMuted hover:text-slateOlive';
+          p.classList.add('hidden');
+        }
+      });
+      if (tab === 'manage') renderManageClassList();
+    }
+
+    function populateClassDatalist() {
+      const dl = document.getElementById('existingClassDatalist');
+      dl.innerHTML = state.classes.map(c => `<option value="${escapeHtml(c.name)}"></option>`).join('');
+    }
+
+    function renderManageClassList() {
+      const container = document.getElementById('manageClassList');
+      if (state.classes.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slateMuted py-4 text-center">${t('noClassesTitle')}</div>`;
+        return;
+      }
+      container.innerHTML = state.classes.map(cls => {
+        const prog = getClassProgress(cls);
+        return `
+          <div class="flex items-center justify-between gap-3 p-3 rounded-2xl bg-warmBg border border-borderWarm">
+            <div class="min-w-0">
+              <div class="font-bold text-sm text-slateOlive truncate">
+                ${escapeHtml(cls.name)} ${cls.enName && cls.enName !== cls.name ? `<span class="text-xs font-normal text-slateMuted">(${escapeHtml(cls.enName)})</span>` : ''}
+              </div>
+              <div class="text-xs text-slateMuted">
+                ${prog.totalGroups} ${t('groupsCount')} · ${prog.totalStudents} ${t('studentsCount')} · ${prog.gradedGroups}/${prog.totalGroups} ${t('gradedCount')}
+              </div>
+            </div>
+            <button onclick="confirmDeleteClass('${cls.id}')" class="tap-btn min-h-[38px] px-3 py-1.5 rounded-xl bg-white border border-borderWarm hover:border-red-300 hover:text-red-600 text-xs font-bold text-slateMuted shrink-0">
+              🗑️ ${t('deleteBtn')}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function confirmDeleteClass(classId) {
+      openConfirm(t('confirmDeleteClassTitle'), t('confirmDeleteClassMsg'), () => {
+        state.classes = state.classes.filter(c => c.id !== classId);
+        if (state.activeClassId === classId) {
+          state.activeClassId = state.classes[0]?.id || null;
+          state.activeGroupId = state.classes[0]?.groups[0]?.id || null;
+        }
+        saveState(true);
+        renderManageClassList();
+        populateClassDatalist();
+        renderAll();
+        showToast(t('toastSaved'));
+      });
+    }
+
+    function confirmResetDemoData() {
+      openConfirm(t('confirmResetTitle'), t('confirmResetMsg'), () => {
+        const currentLang = state.lang;
+        state = createDemoState();
+        state.lang = currentLang;
+        saveState(true);
+        renderManageClassList();
+        populateClassDatalist();
+        renderAll();
+        showToast(t('toastReset'));
+      });
+    }
+
+    /* --- Group CRUD --- */
+    function openGroupModal(mode, groupId = null) {
+      const cls = getActiveClass();
+      if (!cls) return;
+      modalContext.groupMode = mode;
+      modalContext.groupId = groupId;
+
+      const titleEl = document.getElementById('groupModalTitle');
+      const nameInput = document.getElementById('inputGroupName');
+      const countryInput = document.getElementById('inputGroupCountry');
+
+      if (mode === 'edit' && groupId) {
+        const grp = cls.groups.find(g => g.id === groupId);
+        titleEl.textContent = t('editGroupTitle');
+        nameInput.value = grp ? grp.name : '';
+        countryInput.value = grp ? (grp.country || '') : '';
+      } else {
+        titleEl.textContent = t('addGroupTitle');
+        const nextNum = cls.groups.length + 1;
+        nameInput.value = state.lang === 'zh' ? `第 ${nextNum} 組` : `Group ${nextNum}`;
+        countryInput.value = '';
+      }
+      openModal('groupModal');
+      setTimeout(() => nameInput.focus(), 50);
+    }
+
+    function saveGroupModal() {
+      const name = document.getElementById('inputGroupName').value.trim();
+      const country = document.getElementById('inputGroupCountry').value.trim();
+      if (!name) return;
+
+      const cls = getActiveClass();
+      if (!cls) return;
+
+      if (modalContext.groupMode === 'edit') {
+        const grp = cls.groups.find(g => g.id === modalContext.groupId);
+        if (grp) {
+          grp.name = name;
+          grp.country = country;
+        }
+      } else {
+        const newGrp = {
+          id: uid('grp'),
+          name,
+          country,
+          format: 'poster',
+          scores: { content: null, craft: null, teamwork: null },
+          students: []
+        };
+        cls.groups.push(newGrp);
+        state.activeGroupId = newGrp.id;
+      }
+
+      closeModal('groupModal');
+      saveState(true);
+      renderAll();
+      showToast(t('toastSaved'));
+    }
+
+    function confirmDeleteGroup(groupId) {
+      openConfirm(t('confirmDeleteGroupTitle'), t('confirmDeleteGroupMsg'), () => {
+        const cls = getActiveClass();
+        if (!cls) return;
+        cls.groups = cls.groups.filter(g => g.id !== groupId);
+        state.activeGroupId = cls.groups[0]?.id || null;
+        saveState(true);
+        renderAll();
+        showToast(t('toastSaved'));
+      });
+    }
+
+    /* --- Student CRUD --- */
+    function openStudentModal(mode, studentId = null) {
+      const grp = getActiveGroup();
+      if (!grp) return;
+      modalContext.studentMode = mode;
+      modalContext.studentId = studentId;
+
+      const titleEl = document.getElementById('studentModalTitle');
+      const seatInput = document.getElementById('inputStudentSeat');
+      const nameInput = document.getElementById('inputStudentName');
+      const roleSelect = document.getElementById('inputStudentRole');
+
+      if (mode === 'edit' && studentId) {
+        const stu = grp.students.find(s => s.id === studentId);
+        titleEl.textContent = t('editStudentTitle');
+        seatInput.value = stu ? stu.seat : '';
+        nameInput.value = stu ? stu.name : '';
+        roleSelect.value = stu ? (stu.role || '') : '';
+      } else {
+        titleEl.textContent = t('addStudentTitle');
+        seatInput.value = '';
+        nameInput.value = '';
+        roleSelect.value = '';
+      }
+      openModal('studentModal');
+      setTimeout(() => nameInput.focus(), 50);
+    }
+
+    function saveStudentModal() {
+      const seat = document.getElementById('inputStudentSeat').value.trim();
+      const name = document.getElementById('inputStudentName').value.trim();
+      const role = document.getElementById('inputStudentRole').value;
+      if (!name) return;
+
+      const grp = getActiveGroup();
+      if (!grp) return;
+
+      if (modalContext.studentMode === 'edit') {
+        const stu = grp.students.find(s => s.id === modalContext.studentId);
+        if (stu) {
+          stu.seat = seat;
+          stu.name = name;
+          stu.role = role;
+        }
+      } else {
+        grp.students.push({
+          id: uid('stu'),
+          seat,
+          name,
+          role,
+          scores: { pron: null, vol: null, stage: null },
+          comment: ''
+        });
+      }
+
+      closeModal('studentModal');
+      saveState(true);
+      renderAll();
+      showToast(t('toastSaved'));
+    }
+
+    function confirmDeleteStudent(studentId) {
+      openConfirm(t('confirmDeleteStuTitle'), t('confirmDeleteStuMsg'), () => {
+        const grp = getActiveGroup();
+        if (!grp) return;
+        grp.students = grp.students.filter(s => s.id !== studentId);
+        saveState(true);
+        renderAll();
+        showToast(t('toastSaved'));
+      });
+    }
+
+    /* =========================================================================
+       8. DYNAMIC CLASS IMPORT (EXCEL/CSV & QUICK PASTE) + JSON BACKUP
+       ========================================================================= */
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('border-terracotta', 'bg-terracottaSoft');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('border-terracotta', 'bg-terracottaSoft');
+    });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('border-terracotta', 'bg-terracottaSoft');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleRosterFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    function findOrCreateClassByName(rawClassName) {
+      const trimmed = String(rawClassName || '').trim();
+      if (!trimmed) {
+        return getActiveClass() || findOrCreateClassByName(state.lang === 'zh' ? '新班級' : 'New Class');
+      }
+
+      const norm = trimmed.toLowerCase();
+      // Match existing class by zh name or enName
+      let existing = state.classes.find(c =>
+        c.name.toLowerCase() === norm ||
+        (c.enName && c.enName.toLowerCase() === norm)
+      );
+      if (existing) return existing;
+
+      // Also check common aliases for default 6 classes
+      const aliasMap = [
+        { keys: ['六忠', '6-zhong', '6zhong'], zh: '六忠', en: '6-Zhong' },
+        { keys: ['六孝', '6-xiao', '6xiao'], zh: '六孝', en: '6-Xiao' },
+        { keys: ['六仁', '6-ren', '6ren'], zh: '六仁', en: '6-Ren' },
+        { keys: ['六愛', '六爱', '6-ai', '6ai'], zh: '六愛', en: '6-Ai' },
+        { keys: ['六信', '6-xin', '6xin'], zh: '六信', en: '6-Xin' },
+        { keys: ['六美', '6-mei', '6mei'], zh: '六美', en: '6-Mei' },
+      ];
+      for (const item of aliasMap) {
+        if (item.keys.includes(norm)) {
+          const found = state.classes.find(c => c.name === item.zh);
+          if (found) return found;
+          const created = { id: uid('cls'), name: item.zh, enName: item.en, groups: [] };
+          state.classes.push(created);
+          return created;
+        }
+      }
+
+      // Dynamically create a brand-new class tab!
+      const newCls = {
+        id: uid('cls'),
+        name: trimmed,
+        enName: trimmed,
+        groups: []
+      };
+      state.classes.push(newCls);
+      return newCls;
+    }
+
+    function findColValue(row, candidates) {
+      const keys = Object.keys(row);
+      for (const cand of candidates) {
+        const found = keys.find(k => k.trim().toLowerCase().includes(cand));
+        if (found !== undefined && row[found] !== undefined && String(row[found]).trim() !== '') {
+          return String(row[found]).trim();
+        }
+      }
+      return '';
+    }
+
+    function applyImportedRecords(records, mode) {
+      if (!records || records.length === 0) return { count: 0, firstClassId: null };
+
+      // If overwrite mode, clear groups only for the classes present in the imported records
+      const touchedClassIds = new Set();
+      let firstClassId = null;
+      let count = 0;
+
+      records.forEach(rec => {
+        const cls = findOrCreateClassByName(rec.className);
+        if (!firstClassId) firstClassId = cls.id;
+
+        if (mode === 'overwrite' && !touchedClassIds.has(cls.id)) {
+          cls.groups = [];
+          touchedClassIds.add(cls.id);
+        }
+
+        const gName = rec.groupName || (state.lang === 'zh' ? '第 1 組' : 'Group 1');
+        let grp = cls.groups.find(g => g.name === gName);
+        if (!grp) {
+          grp = {
+            id: uid('grp'),
+            name: gName,
+            country: '',
+            format: 'poster',
+            scores: { content: null, craft: null, teamwork: null },
+            students: []
+          };
+          cls.groups.push(grp);
+        }
+
+        const existingStu = grp.students.find(s => s.name === rec.name && s.seat === rec.seat);
+        if (existingStu) {
+          if (rec.role) existingStu.role = rec.role;
+        } else {
+          grp.students.push({
+            id: uid('stu'),
+            seat: rec.seat,
+            name: rec.name,
+            role: rec.role,
+            scores: { pron: null, vol: null, stage: null },
+            comment: ''
+          });
+        }
+        count++;
+      });
+
+      return { count, firstClassId };
+    }
+
+    function handleRosterFile(file) {
+      if (!file) return;
+      if (typeof XLSX === 'undefined') {
+        showToast('SheetJS library not loaded.', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+          if (!rows || rows.length === 0) {
+            showToast(state.lang === 'zh' ? '檔案內沒有讀取到任何名單資料' : 'No rows found in file.', 'error');
+            return;
+          }
+
+          const records = [];
+          rows.forEach(row => {
+            const name = findColValue(row, ['姓名', 'name', 'student']);
+            if (!name) return;
+            records.push({
+              className: findColValue(row, ['班級', '班级', 'class']),
+              groupName: findColValue(row, ['組別', '组别', 'group', 'team']),
+              seat: findColValue(row, ['座號', '座号', 'seat', 'no.', 'no', 'number']),
+              name,
+              role: findColValue(row, ['職務', '职务', '角色', 'role'])
+            });
+          });
+
+          if (records.length === 0) {
+            showToast(state.lang === 'zh' ? '找不到「姓名 / Name」欄位，請參考下載的範本' : 'Could not find Name column. Please check the template.', 'error');
+            return;
+          }
+
+          const mode = document.querySelector('input[name="importMode"]:checked').value;
+          const result = applyImportedRecords(records, mode);
+
+          if (result.firstClassId) {
+            state.activeClassId = result.firstClassId;
+            const targetCls = state.classes.find(c => c.id === result.firstClassId);
+            state.activeGroupId = targetCls?.groups[0]?.id || null;
+          }
+
+          saveState(true);
+          closeModal('classManagerModal');
+          renderAll();
+          showToast(`${t('toastImported')} (${result.count})`);
+        } catch (err) {
+          console.error(err);
+          showToast(state.lang === 'zh' ? '檔案解析失敗，請確認格式是否正確' : 'Failed to parse file.', 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function handleQuickClassImport() {
+      const className = document.getElementById('quickClassName').value.trim();
+      const mode = document.getElementById('quickImportMode').value;
+      const rawText = document.getElementById('quickPasteText').value.trim();
+
+      if (!className) {
+        showToast(state.lang === 'zh' ? '請先輸入班級名稱' : 'Please enter a class name.', 'error');
+        return;
+      }
+
+      // If no students pasted, still allow creating an empty class tab
+      if (!rawText) {
+        const cls = findOrCreateClassByName(className);
+        state.activeClassId = cls.id;
+        state.activeGroupId = cls.groups[0]?.id || null;
+        saveState(true);
+        closeModal('classManagerModal');
+        renderAll();
+        showToast(t('toastImported'));
+        return;
+      }
+
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const records = [];
+
+      lines.forEach(line => {
+        // Support Tab, comma, Chinese comma
+        const parts = line.split(/[\t,，、]+/).map(p => p.trim());
+        if (parts.length === 1) {
+          records.push({ className, groupName: state.lang === 'zh' ? '第 1 組' : 'Group 1', seat: '', name: parts[0], role: '' });
+        } else if (parts.length === 2) {
+          records.push({ className, groupName: state.lang === 'zh' ? '第 1 組' : 'Group 1', seat: parts[0], name: parts[1], role: '' });
+        } else {
+          records.push({
+            className,
+            groupName: parts[0],
+            seat: parts[1],
+            name: parts[2],
+            role: parts[3] || ''
+          });
+        }
+      });
+
+      const result = applyImportedRecords(records, mode);
+      if (result.firstClassId) {
+        state.activeClassId = result.firstClassId;
+        const targetCls = state.classes.find(c => c.id === result.firstClassId);
+        state.activeGroupId = targetCls?.groups[0]?.id || null;
+      }
+
+      document.getElementById('quickClassName').value = '';
+      document.getElementById('quickPasteText').value = '';
+
+      saveState(true);
+      closeModal('classManagerModal');
+      renderAll();
+      showToast(`${t('toastImported')} (${result.count})`);
+    }
+
+    function downloadSampleTemplate() {
+      if (typeof XLSX === 'undefined') return;
+      const sampleRows = [
+        { '班級': '六愛', '組別': '第 1 組', '座號': '01', '姓名': '王小明', '職務': 'Leader' },
+        { '班級': '六愛', '組別': '第 1 組', '座號': '02', '姓名': '李小華', '職務': 'Project Manager' },
+        { '班級': '六愛', '組別': '第 1 組', '座號': '03', '姓名': '張雅婷', '職務': 'Materials Manager' },
+        { '班級': '六信', '組別': '第 1 組', '座號': '01', '姓名': '周杰倫', '職務': 'Leader' },
+        { '班級': '六平', '組別': '第 1 組', '座號': '01', '姓名': '林書豪', '職務': 'Leader' },
+        { '班級': '六平', '組別': '第 1 組', '座號': '02', '姓名': '戴資穎', '職務': 'Training Manager' },
+      ];
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      ws['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 20 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Roster_Template');
+      XLSX.writeFile(wb, 'G6_Country_Project_Class_Template.xlsx');
+      showToast(t('toastTemplate'));
+    }
+
+    /* --- JSON Backup & Restore --- */
+    function exportBackupJson() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `G6_Grader_Backup_${getDateStamp()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(t('toastBackupSaved'));
+    }
+
+    function importBackupJson(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!parsed || !Array.isArray(parsed.classes)) {
+            throw new Error('Invalid backup format');
+          }
+          state = parsed;
+          saveState(true);
+          closeModal('classManagerModal');
+          renderAll();
+          showToast(t('toastBackupRestored'));
+        } catch (err) {
+          console.error(err);
+          showToast(state.lang === 'zh' ? '備份檔格式錯誤，無法還原' : 'Invalid JSON backup file.', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    /* =========================================================================
+       9. SCOREBOARD MODAL
+       ========================================================================= */
+    function openScoreboardModal() {
+      const cls = getActiveClass();
+      if (!cls) return;
+      const label = getClassDisplayName(cls);
+      document.getElementById('scoreboardTitle').textContent = `${label} · ${t('scoreboardBtn')}`;
+      const prog = getClassProgress(cls);
+      document.getElementById('scoreboardSub').textContent =
+        `${prog.totalGroups} ${t('groupsCount')} · ${prog.totalStudents} ${t('studentsCount')} (${prog.gradedGroups}/${prog.totalGroups} ${t('gradedCount')})`;
+      renderScoreboardTable();
+      openModal('scoreboardModal');
+    }
+
+    function renderScoreboardTable() {
+      const cls = getActiveClass();
+      if (!cls) return;
+      const sortBy = document.getElementById('scoreboardSort').value;
+      const rows = [];
+
+      cls.groups.forEach(grp => {
+        grp.students.forEach(stu => {
+          rows.push({ grp, stu, sc: calcStudentScores(stu, grp) });
+        });
+      });
+
+      if (sortBy === 'seat') {
+        rows.sort((a, b) => (parseInt(a.stu.seat, 10) || 999) - (parseInt(b.stu.seat, 10) || 999));
+      } else if (sortBy === 'score') {
+        rows.sort((a, b) => b.sc.teacherTotal - a.sc.teacherTotal);
+      }
+
+      const body = document.getElementById('scoreboardBody');
+      if (rows.length === 0) {
+        body.innerHTML = `<div class="py-12 text-center text-sm text-slateMuted">${t('emptyClassTitle')}</div>`;
+        return;
+      }
+
+      body.innerHTML = `
+        <table class="w-full min-w-[760px] text-left border-collapse text-xs sm:text-sm">
+          <thead>
+            <tr class="bg-sand text-slateOlive">
+              <th class="p-3 rounded-tl-xl">${t('thGroup')}</th>
+              <th class="p-3">${t('thSeat')}</th>
+              <th class="p-3">${t('thName')}</th>
+              <th class="p-3">${t('thRole')}</th>
+              <th class="p-3 text-right">${t('thGroup100')}</th>
+              <th class="p-3 text-right">${t('thGroup30')}</th>
+              <th class="p-3 text-right">${t('thIndiv100')}</th>
+              <th class="p-3 text-right">${t('thIndiv30')}</th>
+              <th class="p-3 text-right font-extrabold">${t('thTeacher60')}</th>
+              <th class="p-3 text-right">${t('thEquiv100')}</th>
+              <th class="p-3 rounded-tr-xl text-center">${t('thAction')}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-borderWarm">
+            ${rows.map(({ grp, stu, sc }) => `
+              <tr class="hover:bg-warmBg">
+                <td class="p-3 font-bold text-slateOlive">${escapeHtml(grp.name)}</td>
+                <td class="p-3 text-slateMuted">${escapeHtml(stu.seat || '-')}</td>
+                <td class="p-3 font-extrabold text-slateOlive">${escapeHtml(stu.name)}</td>
+                <td class="p-3 text-xs text-slateMuted">${escapeHtml(stu.role || '-')}</td>
+                <td class="p-3 text-right text-slateMuted">${sc.groupRaw}</td>
+                <td class="p-3 text-right font-semibold">${sc.groupWeighted}</td>
+                <td class="p-3 text-right text-slateMuted">${sc.indivRaw}</td>
+                <td class="p-3 text-right font-semibold">${sc.indivWeighted}</td>
+                <td class="p-3 text-right font-extrabold ${sc.isFullyGraded ? 'text-sage' : 'text-terracotta'}">${sc.teacherTotal}</td>
+                <td class="p-3 text-right font-semibold text-slateOlive">${sc.equiv100}</td>
+                <td class="p-3 text-center">
+                  <button onclick="jumpToGroup('${grp.id}')" class="tap-btn px-3 py-1.5 rounded-lg bg-terracottaSoft text-terracotta text-xs font-bold">
+                    ${t('goGradeBtn')}
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function jumpToGroup(groupId) {
+      closeModal('scoreboardModal');
+      selectGroup(groupId);
+    }
+
+    /* =========================================================================
+       10. ONE-CLICK EXCEL / CSV EXPORT (NO SELF/PEER COLUMNS)
+       ========================================================================= */
+    function openExportModal() {
+      const cls = getActiveClass();
+      const label = cls ? getClassDisplayName(cls) : '';
+      document.getElementById('exportCurrentXlsxLabel').textContent = `${t('exportCurrentXlsx')}${label ? ' — ' + label : ''}`;
+      document.getElementById('exportCurrentCsvLabel').textContent = `${t('exportCurrentCsv')}${label ? ' — ' + label : ''}`;
+      openModal('exportModal');
+    }
+
+    function buildExportRowsForClass(cls) {
+      const rows = [];
+      cls.groups.forEach(grp => {
+        const gs = grp.scores || {};
+        grp.students.forEach(stu => {
+          const is = stu.scores || {};
+          const sc = calcStudentScores(stu, grp);
+          rows.push({
+            '班級': cls.name,
+            '組別': grp.name,
+            '國家': grp.country || '',
+            '座號': stu.seat || '',
+            '姓名': stu.name,
+            '職務': stu.role || '',
+            '小組-內容(1-5)': gs.content ?? '',
+            '小組-美觀(1-5)': gs.craft ?? '',
+            '小組-合作(1-5)': gs.teamwork ?? '',
+            '小組原始分(滿分100)': sc.groupRaw,
+            '小組加權分(30%)': sc.groupWeighted,
+            '個人-發音(1-5)': is.pron ?? '',
+            '個人-音量(1-5)': is.vol ?? '',
+            '個人-台風(1-5)': is.stage ?? '',
+            '個人原始分(滿分100)': sc.indivRaw,
+            '個人加權分(30%)': sc.indivWeighted,
+            '教師總分(滿分60)': sc.teacherTotal,
+            '教師換算百分制(100)': sc.equiv100,
+            '教師評語': stu.comment || ''
+          });
+        });
+      });
+      return rows;
+    }
+
+    function sanitizeSheetName(name, usedNames) {
+      let clean = String(name || 'Class').replace(/[:\\/?*\[\]]/g, '_').trim().slice(0, 28) || 'Class';
+      let finalName = clean;
+      let counter = 2;
+      while (usedNames.has(finalName)) {
+        finalName = `${clean.slice(0, 25)}_${counter++}`;
+      }
+      usedNames.add(finalName);
+      return finalName;
+    }
+
+    function getDateStamp() {
+      const d = new Date();
+      return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function exportAllClassesXlsx() {
+      if (typeof XLSX === 'undefined') return;
+      const wb = XLSX.utils.book_new();
+      const usedSheetNames = new Set();
+      const allRows = [];
+
+      state.classes.forEach(cls => {
+        allRows.push(...buildExportRowsForClass(cls));
+      });
+
+      const emptyFallback = [{ '提示 Note': '目前尚無學生資料 / No student data yet' }];
+      const allSheetName = sanitizeSheetName('全部班級總表 (All Classes)', usedSheetNames);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allRows.length ? allRows : emptyFallback), allSheetName);
+
+      state.classes.forEach(cls => {
+        const rows = buildExportRowsForClass(cls);
+        const sheetName = sanitizeSheetName(cls.name, usedSheetNames);
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : emptyFallback), sheetName);
+      });
+
+      XLSX.writeFile(wb, `G6_Country_Project_All_Classes_${getDateStamp()}.xlsx`);
+      closeModal('exportModal');
+      showToast(t('toastExported'));
+    }
+
+    function exportCurrentClassXlsx() {
+      if (typeof XLSX === 'undefined') return;
+      const cls = getActiveClass();
+      if (!cls) return;
+      const rows = buildExportRowsForClass(cls);
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ '提示 Note': '尚無資料 / No data' }]);
+      XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(cls.name, new Set()));
+      XLSX.writeFile(wb, `G6_Country_Project_${cls.name}_${getDateStamp()}.xlsx`);
+      closeModal('exportModal');
+      showToast(t('toastExported'));
+    }
+
+    function exportCurrentClassCsv() {
+      const cls = getActiveClass();
+      if (!cls) return;
+      const rows = buildExportRowsForClass(cls);
+      if (rows.length === 0) {
+        showToast(state.lang === 'zh' ? '此班級目前沒有資料可匯出' : 'No data to export.', 'error');
+        return;
+      }
+
+      const headers = Object.keys(rows[0]);
+      const csvLines = [
+        headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(','),
+        ...rows.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(','))
+      ];
+
+      const blob = new Blob(['\uFEFF' + csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `G6_Country_Project_${cls.name}_${getDateStamp()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      closeModal('exportModal');
+      showToast(t('toastExported'));
+    }
+
+    /* =========================================================================
+       11. APP INITIALIZATION
+       ========================================================================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      renderAll();
+    });
+  </script>
+</body>
+</html>
